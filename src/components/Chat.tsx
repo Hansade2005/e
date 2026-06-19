@@ -12,9 +12,14 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { Text } from '@/components/ui/Text';
 import { Avatar } from '@/components/ui/Avatar';
+import { isRemoteId } from '@/lib/db';
+import { fetchMessages, pollMessages, sendMessage } from '@/lib/live';
 import { colors, radius, space, fonts } from '@/theme/tokens';
 
 type Msg = { id: string; from: 'me' | 'peer'; text: string; at: number };
+
+/** When present and the ride is a real Supabase row, chat polls + sends live. */
+export type LiveChat = { rideId: string; senderId: string; senderRole: 'rider' | 'driver' };
 
 export type ChatProps = {
   peerName: string;
@@ -34,6 +39,8 @@ export type ChatProps = {
   onCall?: () => void;
   /** Hide the call button (e.g. for the AI assistant). */
   showCall?: boolean;
+  /** Enable real poll-based messaging against a Supabase ride. */
+  live?: LiveChat;
 };
 
 /**
@@ -51,17 +58,37 @@ export function Chat({
   onBack,
   onCall,
   showCall = true,
+  live,
 }: ChatProps) {
   const insets = useSafeAreaInsets();
   const scroller = useRef<ScrollView>(null);
   const replyTimers = useRef<ReturnType<typeof setTimeout>[]>([]);
   const mounted = useRef(true);
 
+  const isLive = !!live && isRemoteId(live.rideId) && isRemoteId(live.senderId);
+
   const [messages, setMessages] = useState<Msg[]>([
     { id: 'm0', from: 'peer', text: greeting, at: Date.now() - 60000 },
   ]);
   const [draft, setDraft] = useState('');
   const [typing, setTyping] = useState(false);
+
+  // Merge in server messages, de-duping by id (own + counterpart both poll in).
+  const mergeServer = (incoming: { id: string; senderId: string; body: string; createdAt: string }[]) => {
+    if (!live) return;
+    setMessages((prev) => {
+      const have = new Set(prev.map((m) => m.id));
+      const add = incoming
+        .filter((s) => !have.has(s.id))
+        .map((s) => ({
+          id: s.id,
+          from: (s.senderId === live.senderId ? 'me' : 'peer') as 'me' | 'peer',
+          text: s.body,
+          at: +new Date(s.createdAt),
+        }));
+      return add.length ? [...prev, ...add] : prev;
+    });
+  };
 
   useEffect(() => {
     const t = setTimeout(() => scroller.current?.scrollToEnd({ animated: true }), 50);
@@ -77,10 +104,34 @@ export function Chat({
     };
   }, []);
 
+  // Live mode: seed history + poll for new messages.
+  useEffect(() => {
+    if (!isLive || !live) return;
+    let stop = () => {};
+    (async () => {
+      const seed = await fetchMessages(live.rideId);
+      if (mounted.current && seed.length) mergeServer(seed);
+      stop = pollMessages(live.rideId, (msgs) => {
+        if (mounted.current) mergeServer(msgs);
+      });
+    })();
+    return () => stop();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isLive, live?.rideId]);
+
   function send(text: string) {
     const t = text.trim();
     if (!t) return;
     setDraft('');
+
+    // Real ride chat: persist + let polling reconcile (own message returns with
+    // its server id, so it isn't double-shown).
+    if (isLive && live) {
+      setMessages((m) => [...m, { id: 'local' + Date.now(), from: 'me', text: t, at: Date.now() }]);
+      void sendMessage({ rideId: live.rideId, senderId: live.senderId, senderRole: live.senderRole, body: t });
+      return;
+    }
+
     const history = messages.map((m) => ({
       role: m.from === 'me' ? ('user' as const) : ('assistant' as const),
       content: m.text,

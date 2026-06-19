@@ -14,6 +14,18 @@ entirely by **OpenStreetMap** — no API keys, no map billing.
 
 ## Features
 
+### Onboarding
+- **Rider:** a short intro (how it works, fair pricing, location priming)
+- **Driver:** multi-step setup (vehicle, license/insurance, payout) that gates
+  going online and writes a `driver_profiles` row
+
+### Live (poll-based, no Realtime)
+- **Chat** can sync against a real Supabase ride (`messages` table) by polling on
+  an interval; falls back to the scripted demo chat when there's no live ride.
+- **Driver presence:** drivers upsert position to `driver_locations` while online;
+  the rider map polls online drivers and shows them live. Polling (not Realtime)
+  keeps connection/credit costs down. See `src/lib/live.ts` + `supabase/migrations/0002_chat_presence.sql`.
+
 ### Rider
 - **Onboarding hero** with the route-line signature and live stats
 - **Email/password auth** (Supabase) + role picker + one-tap **guest demo**

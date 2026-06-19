@@ -1,4 +1,4 @@
-import { useEffect, useMemo } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { View, StyleSheet, Pressable, ScrollView } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { router, useFocusEffect } from 'expo-router';
@@ -14,6 +14,7 @@ import { useAuth } from '@/store/auth';
 import { useRide } from '@/store/ride';
 import { usePlaces } from '@/store/places';
 import { useNotifications, unreadCount } from '@/store/notifications';
+import { pollOnlineDrivers, type OnlineDriver } from '@/lib/live';
 import { nearbyDrivers, type Place } from '@/lib/geo';
 import { localPlaces } from '@/lib/geo';
 import { colors, radius, shadow, space, fonts } from '@/theme/tokens';
@@ -52,10 +53,18 @@ export default function Home() {
     }, [reset]),
   );
 
-  const drivers = useMemo(
-    () => (pickup ? nearbyDrivers(pickup, 7) : []),
-    [pickup?.lat, pickup?.lng],
-  );
+  // Live presence: poll real online drivers (poll-based, no Realtime). Empty in
+  // the offline/demo case, so the simulated markers stand in.
+  const [liveDrivers, setLiveDrivers] = useState<OnlineDriver[]>([]);
+  useEffect(() => {
+    const stop = pollOnlineDrivers(setLiveDrivers);
+    return stop;
+  }, []);
+
+  const drivers = useMemo(() => {
+    const sim = pickup ? nearbyDrivers(pickup, 7) : [];
+    return [...liveDrivers.map((d) => d.pos), ...sim];
+  }, [pickup?.lat, pickup?.lng, liveDrivers]);
 
   const quick = localPlaces.slice(0, 4);
 
