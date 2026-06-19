@@ -54,10 +54,12 @@ entirely by **OpenStreetMap** — no API keys, no map billing.
 - **Profile**, **payment methods**
 
 ### Driver
-- **Go online/offline**, simulated **incoming requests** with accept/decline
-- **Trip stepper**: to pickup → arrived → start → complete
-- **Earnings dashboard**: weekly total, daily bar chart, instant cash-out,
-  "$0.00 in platform fees"
+- **Go online/offline**, **incoming requests** (real open requests when matched,
+  else simulated) with accept/decline
+- **Trip stepper**: to pickup → arrived → start → complete; **rate the rider**
+- **Earnings dashboard**: weekly total, daily bar chart, instant cash-out
+- **Invest in Ez2go**: at cash-out, drivers can put part of their earnings toward
+  platform equity (shares + ownership %), tracked in `driver_investments`
 
 ### Platform
 - **OpenStreetMap** maps via Leaflet on web (`react-leaflet`); native fallback

@@ -161,6 +161,16 @@ await step('view-earnings', async () => {
 });
 await page.screenshot({ path: `${SHOTS}/d4-earnings.png` });
 
+await step('cash-out-and-invest', async () => {
+  await tid('open-cashout').click();
+  await tid('cashout-confirm').waitFor({ timeout: 10000 });
+  await tid('invest-50').click(); // put half toward Ez2go equity
+  await page.screenshot({ path: `${SHOTS}/d5-cashout.png` });
+  await tid('cashout-confirm').click();
+  await tid('cashout-done').waitFor({ timeout: 10000 });
+});
+await page.screenshot({ path: `${SHOTS}/d6-stake.png` });
+
 console.log(`\nConsole/page errors: ${errors.length}`);
 errors.slice(0, 15).forEach((e) => console.log('  •', e));
 

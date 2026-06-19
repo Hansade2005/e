@@ -53,6 +53,7 @@ type DriverState = {
   advance: () => void;
   rateRider: (stars: number) => Promise<void>;
   finish: () => Promise<void>;
+  cashOut: () => Promise<number>;
   load: () => Promise<void>;
 };
 
@@ -236,6 +237,17 @@ export const useDriver = create<DriverState>((set, get) => ({
     });
     await storage.setItem(KEY, JSON.stringify({ earningsToday, tripsToday, history }));
     if (get().online) get().receiveOffer();
+  },
+
+  /** Cash out today's available earnings; returns the amount paid out. */
+  async cashOut() {
+    const amount = get().earningsToday;
+    set({ earningsToday: 0 });
+    await storage.setItem(
+      KEY,
+      JSON.stringify({ earningsToday: 0, tripsToday: get().tripsToday, history: get().history }),
+    );
+    return amount;
   },
 
   async load() {

@@ -207,6 +207,40 @@ export async function upsertDriverProfileRemote(
   }
 }
 
+// ---------------------------------------------------------------- investments
+
+export async function upsertInvestmentRemote(
+  userId: string,
+  data: { totalInvested: number; shares: number },
+): Promise<void> {
+  if (!isRemoteId(userId)) return;
+  try {
+    await supabase.from('driver_investments').upsert(
+      { id: userId, total_invested: round2(data.totalInvested), shares: data.shares },
+      { onConflict: 'id' },
+    );
+  } catch {
+    /* offline-friendly */
+  }
+}
+
+export async function fetchInvestmentRemote(
+  userId: string,
+): Promise<{ totalInvested: number; shares: number } | null> {
+  if (!isRemoteId(userId)) return null;
+  try {
+    const { data, error } = await supabase
+      .from('driver_investments')
+      .select('total_invested, shares')
+      .eq('id', userId)
+      .single();
+    if (error || !data) return null;
+    return { totalInvested: Number(data.total_invested ?? 0), shares: Number(data.shares ?? 0) };
+  } catch {
+    return null;
+  }
+}
+
 function round2(n: number): number {
   return Math.round(n * 100) / 100;
 }
