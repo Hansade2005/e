@@ -49,6 +49,7 @@
     "e2e": "node e2e/flow.mjs",
     "e2e:places": "node e2e/places.mjs",
     "seed": "node scripts/seed.mjs",
+    "migrate": "node scripts/run_migration.mjs",
     "typecheck": "tsc --noEmit"
   },
   "private": true
