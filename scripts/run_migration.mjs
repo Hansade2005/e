@@ -25,7 +25,8 @@ async function rpc(fn, query_text) {
 }
 
 const sql = readFileSync(file, 'utf8');
-console.log(`→ Applying ${file} (${sql.length} bytes) via exec_sql …`);
+const EXEC_FN = process.env.EXEC_FN || 'exec_claudecode_query';
+console.log(`→ Applying ${file} (${sql.length} bytes) via ${EXEC_FN} …`);
 
 // Run statement-by-statement so a single failure is pinpointed. 0002 has no
 // dollar-quoted bodies or in-string semicolons, so splitting on ';' is safe.
@@ -36,7 +37,7 @@ const statements = sql
 
 let ok = 0;
 for (const stmt of statements) {
-  const { status, json } = await rpc('exec_sql', stmt + ';');
+  const { status, json } = await rpc(EXEC_FN, stmt + ';');
   const err = json && typeof json === 'object' && json.error;
   const head = stmt.replace(/\s+/g, ' ').slice(0, 60);
   if (err || status >= 400) {
