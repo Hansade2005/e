@@ -12,7 +12,8 @@ import { Eyebrow } from '@/components/ui/Eyebrow';
 import { Avatar } from '@/components/ui/Avatar';
 import { useAuth } from '@/store/auth';
 import { useRide } from '@/store/ride';
-import { nearbyDrivers } from '@/lib/geo';
+import { usePlaces } from '@/store/places';
+import { nearbyDrivers, type Place } from '@/lib/geo';
 import { localPlaces } from '@/lib/geo';
 import { colors, radius, shadow, space, fonts } from '@/theme/tokens';
 
@@ -23,10 +24,16 @@ export default function Home() {
   const reset = useRide((s) => s.reset);
   const setDestination = useRide((s) => s.setDestination);
   const loadHistory = useRide((s) => s.loadHistory);
+  const loadPlaces = usePlaces((s) => s.load);
+  const savedPlaces = usePlaces((s) => s.places);
+  const savedHome = savedPlaces.find((p) => p.kind === 'home');
+  const savedWork = savedPlaces.find((p) => p.kind === 'work');
+  const favorites = useMemo(() => savedPlaces.filter((p) => p.kind === 'favorite'), [savedPlaces]);
 
   useEffect(() => {
     loadHistory();
-  }, [loadHistory]);
+    loadPlaces();
+  }, [loadHistory, loadPlaces]);
 
   // Ensure a clean slate whenever we land on home.
   useFocusEffect(
@@ -42,9 +49,15 @@ export default function Home() {
 
   const quick = localPlaces.slice(0, 4);
 
-  async function goTo(placeIndex: number) {
-    await setDestination(quick[placeIndex]);
+  async function goToPlace(place: Place) {
+    await setDestination(place);
     router.push('/(rider)/select-ride');
+  }
+
+  // A saved slot rides to it when set; otherwise opens the editor to add it.
+  function slotPress(place?: Place) {
+    if (place) goToPlace(place);
+    else router.push('/(rider)/saved-places');
   }
 
   return (
@@ -96,14 +109,22 @@ export default function Home() {
           showsHorizontalScrollIndicator={false}
           contentContainerStyle={styles.chips}
         >
-          <SavedChip icon="home" label="Home" onPress={() => goTo(1)} />
-          <SavedChip icon="briefcase" label="Work" onPress={() => goTo(2)} />
-          {quick.map((p, i) => (
+          <SavedChip icon="home" label="Home" testID="chip-home" onPress={() => slotPress(savedHome)} />
+          <SavedChip icon="briefcase" label="Work" testID="chip-work" onPress={() => slotPress(savedWork)} />
+          {favorites.map((p) => (
+            <SavedChip
+              key={p.id}
+              icon="star"
+              label={p.name.split(' ').slice(0, 2).join(' ')}
+              onPress={() => goToPlace(p)}
+            />
+          ))}
+          {quick.map((p) => (
             <SavedChip
               key={p.id}
               icon="location"
               label={p.name.split(' ').slice(0, 2).join(' ')}
-              onPress={() => goTo(i)}
+              onPress={() => goToPlace(p)}
             />
           ))}
         </ScrollView>
@@ -116,13 +137,15 @@ function SavedChip({
   icon,
   label,
   onPress,
+  testID,
 }: {
   icon: keyof typeof Ionicons.glyphMap;
   label: string;
   onPress: () => void;
+  testID?: string;
 }) {
   return (
-    <Pressable style={styles.chip} onPress={onPress}>
+    <Pressable style={styles.chip} onPress={onPress} testID={testID}>
       <View style={styles.chipIcon}>
         <Ionicons name={icon} size={16} color={colors.jade} />
       </View>

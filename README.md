@@ -26,7 +26,9 @@ entirely by **OpenStreetMap** — no API keys, no map billing.
 - **Live trip tracking**: matching → driver en-route → arrived → in-progress,
   with an animated car moving along the route
 - **Receipt + tip + rating**, Empower-style "driver keeps 100%" comparison
-- **Ride history**, **profile**, **payment methods**
+- **Ride history** persisted to Supabase (`rides`) so trips show across devices
+- **Saved places** — Home / Work / favorites stored in Supabase (`saved_places`)
+- **Profile**, **payment methods**
 
 ### Driver
 - **Go online/offline**, simulated **incoming requests** with accept/decline
@@ -81,6 +83,18 @@ supabase/migrations/0001_init.sql
 It creates `profiles`, `payment_methods`, `saved_places`, `rides`, with RLS,
 an auto-profile trigger on sign-up, and realtime on `rides`.
 
+### Seed demo data (optional)
+
+```bash
+npm run seed
+```
+
+Signs in a demo rider and seeds **saved places** (Home/Work/a favorite) and a
+couple of completed **rides**. Set `SUPABASE_SERVICE_ROLE_KEY` to also create
+demo **driver** accounts. Override `SEED_EMAIL` / `SEED_PASSWORD` as needed.
+(Persistence is best-effort everywhere: signed-in users sync to Supabase; guest
+and offline sessions stay fully local.)
+
 ---
 
 ## End-to-end testing (browser, Playwright)
@@ -109,9 +123,11 @@ src/
   components/Map/          # MapView.web (Leaflet/OSM) + native fallback
   constants/               # vehicle classes + fare engine, driver pool
   lib/                     # supabase, geo (Nominatim/OSRM), payments (mock + interface), storage
-  store/                   # zustand: auth, ride, driver
+  lib/db.ts                # Supabase data access for rides + saved places
+  store/                   # zustand: auth, ride, driver, places
   theme/                   # design tokens (color, type, spacing)
 supabase/migrations/       # SQL schema
+scripts/seed.mjs           # demo data seeder
 ```
 
 ---

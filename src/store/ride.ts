@@ -10,6 +10,8 @@ import { estimateFare, VEHICLE_CLASSES, type Fare, type VehicleClass } from '@/c
 import { pickDriver, type DriverProfile } from '@/constants/drivers';
 import { payments } from '@/lib/payments';
 import { storage } from '@/lib/storage';
+import { fetchRidesRemote, saveRideRemote, updateRideRemote } from '@/lib/db';
+import { useAuth } from '@/store/auth';
 
 export type RideStatus =
   | 'idle' // nothing selected
@@ -33,6 +35,7 @@ export type RideRecord = {
   driverName: string;
   rating?: number;
   status: 'completed' | 'cancelled';
+  remoteId?: string; // rides.id once persisted to Supabase
 };
 
 type Quote = { vehicle: VehicleClass; fare: Fare };
@@ -62,7 +65,7 @@ type RideState = {
   requestRide: () => Promise<void>;
   cancelRide: () => void;
   reset: () => void;
-  rateLastRide: (stars: number) => Promise<void>;
+  rateLastRide: (stars: number, tip?: number) => Promise<void>;
   loadHistory: () => Promise<void>;
 };
 
@@ -209,26 +212,54 @@ export const useRide = create<RideState>((set, get) => ({
     });
   },
 
-  async rateLastRide(stars) {
+  async rateLastRide(stars, tip = 0) {
     const hist = get().history.slice();
     if (hist[0]) {
       hist[0] = { ...hist[0], rating: stars };
       set({ history: hist });
       await storage.setItem(HISTORY_KEY, JSON.stringify(hist));
+      // Reflect the tip + rating on the persisted ride.
+      if (hist[0].remoteId) void updateRideRemote(hist[0].remoteId, { tip, rider_rating: stars });
     }
   },
 
   async loadHistory() {
+    // Local cache first for instant render…
     const raw = await storage.getItem(HISTORY_KEY);
+    let local: RideRecord[] = [];
     if (raw) {
       try {
-        set({ history: JSON.parse(raw) as RideRecord[] });
+        local = JSON.parse(raw) as RideRecord[];
+        set({ history: local });
       } catch {
         /* ignore */
       }
     }
+    // …then reconcile with Supabase so trips appear across devices.
+    const userId = useAuth.getState().user?.id;
+    if (userId) {
+      const remote = await fetchRidesRemote(userId);
+      if (remote.length) {
+        const merged = mergeHistory(remote, local);
+        set({ history: merged });
+        await storage.setItem(HISTORY_KEY, JSON.stringify(merged));
+      }
+    }
   },
 }));
+
+// Merge remote + local ride lists, de-duplicating on remoteId, newest first.
+function mergeHistory(remote: RideRecord[], local: RideRecord[]): RideRecord[] {
+  const byKey = new Map<string, RideRecord>();
+  for (const r of remote) byKey.set(r.remoteId ?? r.id, r);
+  for (const l of local) {
+    const key = l.remoteId ?? l.id;
+    if (!byKey.has(key)) byKey.set(key, l);
+  }
+  return Array.from(byKey.values())
+    .sort((a, b) => +new Date(b.createdAt) - +new Date(a.createdAt))
+    .slice(0, 50);
+}
 
 function animateLeg(
   get: () => RideState,
@@ -294,4 +325,16 @@ async function completeRide(get: () => RideState, set: (p: Partial<RideState>) =
     lastReceipt: { fare, vehicleName: vehicle.vehicle.name },
     history,
   });
+
+  // Persist to Supabase (no-op for guest/offline) and remember the row id so a
+  // later tip/rating can update the same record.
+  const userId = useAuth.getState().user?.id;
+  if (userId) {
+    const remoteId = await saveRideRemote(record, userId);
+    if (remoteId) {
+      const next = get().history.map((r) => (r.id === record.id ? { ...r, remoteId } : r));
+      set({ history: next });
+      await storage.setItem(HISTORY_KEY, JSON.stringify(next));
+    }
+  }
 }

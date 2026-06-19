@@ -61,18 +61,30 @@ function Recenter({
 }) {
   const map = useMap();
   useEffect(() => {
-    if (route && route.length > 1) {
-      const bounds = L.latLngBounds(route.map((c) => [c.lat, c.lng] as [number, number]));
-      map.fitBounds(bounds, { padding: [60, 60], maxZoom: 15, animate: true });
-    } else {
-      map.setView([center.lat, center.lng], 14, { animate: true });
+    // Guard against Leaflet teardown races (panning a map mid-unmount throws
+    // a harmless `_leaflet_pos` error).
+    try {
+      if (route && route.length > 1) {
+        const bounds = L.latLngBounds(route.map((c) => [c.lat, c.lng] as [number, number]));
+        map.fitBounds(bounds, { padding: [60, 60], maxZoom: 15, animate: true });
+      } else {
+        map.setView([center.lat, center.lng], 14, { animate: true });
+      }
+    } catch {
+      /* map is unmounting */
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [JSON.stringify(route), center.lat, center.lng]);
 
   useEffect(() => {
-    if (follow && driverPos) {
-      map.panTo([driverPos.lat, driverPos.lng], { animate: true });
+    try {
+      if (follow && driverPos) {
+        // Non-animated: the position updates every ~120ms anyway, and avoiding
+        // the pan animation prevents async frames firing after unmount.
+        map.panTo([driverPos.lat, driverPos.lng], { animate: false });
+      }
+    } catch {
+      /* map is unmounting */
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [driverPos?.lat, driverPos?.lng, follow]);

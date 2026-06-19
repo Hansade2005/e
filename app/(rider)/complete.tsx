@@ -33,7 +33,7 @@ export default function Complete() {
   const total = fare + tip;
 
   async function done() {
-    await rateLastRide(stars);
+    await rateLastRide(stars, tip);
     // Pop the search → select-ride → complete chain back to the base home.
     if (router.canDismiss()) router.dismissAll();
     else router.replace('/(rider)/home');

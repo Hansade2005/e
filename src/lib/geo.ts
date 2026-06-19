@@ -15,7 +15,7 @@ export type Place = {
   address: string;
   lat: number;
   lng: number;
-  kind?: 'home' | 'work' | 'recent' | 'search';
+  kind?: 'home' | 'work' | 'recent' | 'search' | 'favorite';
 };
 
 // Default city center — Kansas City (matching the reference brand's home turf).

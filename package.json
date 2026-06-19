@@ -47,6 +47,8 @@
     "export:web": "expo export --platform web",
     "serve:web": "serve dist -s -l 8080",
     "e2e": "node e2e/flow.mjs",
+    "e2e:places": "node e2e/places.mjs",
+    "seed": "node scripts/seed.mjs",
     "typecheck": "tsc --noEmit"
   },
   "private": true
