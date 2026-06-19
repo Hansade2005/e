@@ -31,7 +31,8 @@ export default function SignUp() {
     setLoading(true);
     try {
       await signUp({ name: name.trim(), email: email.trim(), password, role });
-      router.replace(role === 'driver' ? '/(driver)/dashboard' : '/(rider)/home');
+      // New accounts go through role-specific onboarding first.
+      router.replace(role === 'driver' ? '/(driver)/onboarding' : '/(rider)/onboarding');
     } catch (e: any) {
       setError(e?.message ?? 'Could not create your account. Try again.');
     } finally {

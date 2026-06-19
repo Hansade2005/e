@@ -7,6 +7,7 @@ import { Avatar } from '@/components/ui/Avatar';
 import { Eyebrow } from '@/components/ui/Eyebrow';
 import { useAuth } from '@/store/auth';
 import { useRide } from '@/store/ride';
+import { useOnboarding } from '@/store/onboarding';
 import { colors, radius, space, fonts } from '@/theme/tokens';
 
 export default function Profile() {
@@ -15,12 +16,15 @@ export default function Profile() {
   const switchRole = useAuth((s) => s.switchRole);
   const signOut = useAuth((s) => s.signOut);
   const history = useRide((s) => s.history);
+  const driverDone = useOnboarding((s) => s.driverDone);
 
   const totalSpent = history.reduce((s, r) => s + r.fare, 0);
 
   async function becomeDriver() {
     await switchRole('driver');
-    router.replace('/(driver)/dashboard');
+    // Demo guests skip setup; real drivers complete onboarding once.
+    const ready = user?.isGuest || driverDone;
+    router.replace(ready ? '/(driver)/dashboard' : '/(driver)/onboarding');
   }
 
   async function logout() {

@@ -35,12 +35,15 @@ type AuthState = {
 
 const LOCAL_KEY = 'ez2go.profile';
 
-// Distinguishes a real auth rejection (bad credentials, user exists) from the
-// backend simply being unreachable. Supabase tags its errors with __isAuthError
-// and an HTTP status; a network failure (fetch TypeError) has neither.
+// Distinguishes a genuine auth rejection (bad credentials, user already exists)
+// from the backend simply being unreachable. Supabase returns BOTH as error
+// objects tagged __isAuthError, so we key off the HTTP status: real rejections
+// are 4xx (AuthApiError); network/retryable failures are status 0/undefined
+// (AuthRetryableFetchError) or a bare "Failed to fetch" — those fall back to an
+// offline session instead of surfacing.
 function isAuthError(e: unknown): boolean {
-  const err = e as { __isAuthError?: boolean; status?: number; name?: string } | null;
-  return !!(err && (err.__isAuthError || typeof err.status === 'number' || /auth/i.test(err.name ?? '')));
+  const err = e as { status?: number } | null;
+  return typeof err?.status === 'number' && err.status >= 400 && err.status < 500;
 }
 
 const COLORS = ['#00C2A8', '#FF8A3D', '#5B6472', '#1FB57A', '#7A5BD6', '#E5484D'];

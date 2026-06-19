@@ -170,6 +170,43 @@ export async function deleteSavedPlaceRemote(dbId: string): Promise<void> {
   }
 }
 
+// ---------------------------------------------------------------- driver profile
+
+export async function upsertDriverProfileRemote(
+  userId: string,
+  setup: {
+    make: string;
+    model: string;
+    year: string;
+    color: string;
+    plate: string;
+    license: string;
+    insurance: string;
+    payout: string;
+  },
+): Promise<void> {
+  if (!isRemoteId(userId)) return;
+  try {
+    await supabase.from('driver_profiles').upsert(
+      {
+        id: userId,
+        vehicle_make: setup.make,
+        vehicle_model: setup.model,
+        vehicle_year: setup.year ? parseInt(setup.year, 10) || null : null,
+        vehicle_color: setup.color,
+        plate: setup.plate,
+        license_no: setup.license,
+        insurance_provider: setup.insurance,
+        payout_method: setup.payout,
+        verified: true,
+      },
+      { onConflict: 'id' },
+    );
+  } catch {
+    /* offline-friendly */
+  }
+}
+
 function round2(n: number): number {
   return Math.round(n * 100) / 100;
 }
