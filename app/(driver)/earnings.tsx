@@ -4,7 +4,9 @@ import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { Text } from '@/components/ui/Text';
 import { Eyebrow } from '@/components/ui/Eyebrow';
+import { useEffect } from 'react';
 import { useDriver } from '@/store/driver';
+import { useInvest, ownershipPct } from '@/store/invest';
 import { formatMoney } from '@/constants/vehicles';
 import { colors, radius, space, fonts } from '@/theme/tokens';
 
@@ -21,6 +23,13 @@ const WEEK = [
 export default function Earnings() {
   const insets = useSafeAreaInsets();
   const { earningsToday, tripsToday, history } = useDriver();
+  const investedTotal = useInvest((s) => s.invested);
+  const sharesTotal = useInvest((s) => s.shares);
+  const loadInvest = useInvest((s) => s.load);
+
+  useEffect(() => {
+    loadInvest();
+  }, [loadInvest]);
 
   const weekTotal = 642.18 + earningsToday;
   const avgPerTrip = tripsToday ? earningsToday / tripsToday : 0;
@@ -79,10 +88,14 @@ export default function Earnings() {
           <StatBox label="Acceptance" value="98%" />
         </View>
 
-        <View style={styles.cashout}>
+        <Pressable
+          style={styles.cashout}
+          testID="open-cashout"
+          onPress={() => router.push('/(driver)/cashout')}
+        >
           <View style={{ flex: 1 }}>
             <Text variant="bodyStrong" color={colors.onInk}>
-              Instant cash out
+              Cash out or invest
             </Text>
             <Text variant="small" color={colors.onInkMuted}>
               {formatMoney(earningsToday)} available now · no fee
@@ -93,7 +106,23 @@ export default function Earnings() {
               Cash out
             </Text>
           </View>
-        </View>
+        </Pressable>
+
+        {/* Ownership stake */}
+        {investedTotal > 0 ? (
+          <View style={styles.stake} testID="stake-card">
+            <View style={styles.stakeIcon}>
+              <Ionicons name="trending-up" size={20} color={colors.ink} />
+            </View>
+            <View style={{ flex: 1 }}>
+              <Text variant="bodyStrong" color={colors.onInk}>Your Ez2go stake</Text>
+              <Text variant="small" color={colors.onInkMuted}>
+                {sharesTotal.toLocaleString(undefined, { maximumFractionDigits: 2 })} shares · {ownershipPct(sharesTotal).toFixed(4)}%
+              </Text>
+            </View>
+            <Text style={styles.stakeVal}>{formatMoney(investedTotal)}</Text>
+          </View>
+        ) : null}
 
         {history.length ? (
           <>
@@ -183,6 +212,19 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
+  stake: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: space.md,
+    backgroundColor: colors.inkSoft,
+    borderRadius: radius.lg,
+    borderWidth: 1,
+    borderColor: colors.inkLine,
+    padding: space.lg,
+    marginBottom: space.xl,
+  },
+  stakeIcon: { width: 40, height: 40, borderRadius: 12, backgroundColor: colors.jade, alignItems: 'center', justifyContent: 'center' },
+  stakeVal: { fontFamily: fonts.monoBold, fontSize: 17, color: colors.jade },
   payoutRow: {
     flexDirection: 'row',
     alignItems: 'center',

@@ -20,10 +20,12 @@ import {
 } from '@expo-google-fonts/jetbrains-mono';
 import { View } from 'react-native';
 import { useAuth } from '@/store/auth';
+import { useOnboarding } from '@/store/onboarding';
 import { colors } from '@/theme/tokens';
 
 export default function RootLayout() {
   const init = useAuth((s) => s.init);
+  const loadOnboarding = useOnboarding((s) => s.load);
 
   const [loaded] = useFonts({
     SpaceGrotesk_500Medium,
@@ -38,7 +40,8 @@ export default function RootLayout() {
 
   useEffect(() => {
     init();
-  }, [init]);
+    loadOnboarding();
+  }, [init, loadOnboarding]);
 
   if (!loaded) {
     return <View style={{ flex: 1, backgroundColor: colors.ink }} />;

@@ -1,4 +1,4 @@
-import { useEffect, useMemo } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { View, StyleSheet, Pressable, ScrollView } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { router, useFocusEffect } from 'expo-router';
@@ -13,6 +13,8 @@ import { Avatar } from '@/components/ui/Avatar';
 import { useAuth } from '@/store/auth';
 import { useRide } from '@/store/ride';
 import { usePlaces } from '@/store/places';
+import { useNotifications, unreadCount } from '@/store/notifications';
+import { pollOnlineDrivers, type OnlineDriver } from '@/lib/live';
 import { nearbyDrivers, type Place } from '@/lib/geo';
 import { localPlaces } from '@/lib/geo';
 import { colors, radius, shadow, space, fonts } from '@/theme/tokens';
@@ -23,17 +25,29 @@ export default function Home() {
   const pickup = useRide((s) => s.pickup);
   const reset = useRide((s) => s.reset);
   const setDestination = useRide((s) => s.setDestination);
+  const setPickupToCurrent = useRide((s) => s.setPickupToCurrent);
   const loadHistory = useRide((s) => s.loadHistory);
+  const scheduledAt = useRide((s) => s.scheduledAt);
   const loadPlaces = usePlaces((s) => s.load);
   const savedPlaces = usePlaces((s) => s.places);
   const savedHome = savedPlaces.find((p) => p.kind === 'home');
   const savedWork = savedPlaces.find((p) => p.kind === 'work');
   const favorites = useMemo(() => savedPlaces.filter((p) => p.kind === 'favorite'), [savedPlaces]);
+  const loadNotifs = useNotifications((s) => s.load);
+  const notifs = useNotifications((s) => s.items);
+  const unread = unreadCount(notifs);
 
   useEffect(() => {
     loadHistory();
     loadPlaces();
-  }, [loadHistory, loadPlaces]);
+    loadNotifs();
+    // Try to set the pickup to the device's real location (silent if denied).
+    setPickupToCurrent();
+  }, [loadHistory, loadPlaces, loadNotifs, setPickupToCurrent]);
+
+  const scheduleLabel = scheduledAt
+    ? new Date(scheduledAt).toLocaleString(undefined, { hour: 'numeric', minute: '2-digit' })
+    : 'Now';
 
   // Ensure a clean slate whenever we land on home.
   useFocusEffect(
@@ -42,10 +56,18 @@ export default function Home() {
     }, [reset]),
   );
 
-  const drivers = useMemo(
-    () => (pickup ? nearbyDrivers(pickup, 7) : []),
-    [pickup?.lat, pickup?.lng],
-  );
+  // Live presence: poll real online drivers (poll-based, no Realtime). Empty in
+  // the offline/demo case, so the simulated markers stand in.
+  const [liveDrivers, setLiveDrivers] = useState<OnlineDriver[]>([]);
+  useEffect(() => {
+    const stop = pollOnlineDrivers(setLiveDrivers);
+    return stop;
+  }, []);
+
+  const drivers = useMemo(() => {
+    const sim = pickup ? nearbyDrivers(pickup, 7) : [];
+    return [...liveDrivers.map((d) => d.pos), ...sim];
+  }, [pickup?.lat, pickup?.lng, liveDrivers]);
 
   const quick = localPlaces.slice(0, 4);
 
@@ -72,37 +94,69 @@ export default function Home() {
         <View style={styles.brandPill}>
           <Logo size={20} />
         </View>
-        <Pressable onPress={() => router.push('/(rider)/profile')} testID="open-profile">
-          <Avatar name={user?.name ?? 'Rider'} color={user?.avatarColor} size={46} />
-        </Pressable>
+        <View style={styles.topRight}>
+          <Pressable testID="open-activity" onPress={() => router.push('/(rider)/activity')}>
+            <IconButton name="notifications-outline" onPress={() => router.push('/(rider)/activity')} />
+            {unread > 0 ? (
+              <View style={styles.badge} testID="activity-badge">
+                <Text variant="label" color={colors.white} style={{ fontSize: 9 }}>
+                  {unread > 9 ? '9+' : unread}
+                </Text>
+              </View>
+            ) : null}
+          </Pressable>
+          <Pressable onPress={() => router.push('/(rider)/profile')} testID="open-profile">
+            <Avatar name={user?.name ?? 'Rider'} color={user?.avatarColor} size={46} />
+          </Pressable>
+        </View>
       </View>
 
-      {/* Recenter control */}
+      {/* Side controls: AI assistant + recenter */}
       <View style={[styles.sideControls, { bottom: 320 + insets.bottom }]}>
-        <IconButton name="locate" color={colors.jade} />
+        <Pressable
+          style={styles.aiBtn}
+          testID="open-assistant"
+          onPress={() => router.push('/(rider)/assistant')}
+        >
+          <Ionicons name="sparkles" size={16} color={colors.white} />
+          <Text variant="smallStrong" color={colors.white}>Ask Ez</Text>
+        </Pressable>
+        <IconButton name="locate" color={colors.jade} testID="use-location" onPress={() => setPickupToCurrent()} />
       </View>
 
       {/* Bottom panel */}
       <View style={[styles.sheet, { paddingBottom: insets.bottom + space.lg }]}>
         <View style={styles.grabber} />
+        <View style={styles.fromRow}>
+          <View style={styles.fromDot} />
+          <Text variant="small" color={colors.textSecondary} numberOfLines={1} testID="pickup-label" style={{ flex: 1 }}>
+            From {pickup?.name ?? 'Current location'}
+          </Text>
+        </View>
         <Eyebrow>Where to?</Eyebrow>
 
-        <Pressable
-          testID="search-bar"
-          style={styles.searchBar}
-          onPress={() => router.push('/(rider)/search')}
-        >
-          <Ionicons name="search" size={20} color={colors.textSecondary} />
-          <Text variant="bodyStrong" color={colors.textSecondary} style={{ flex: 1 }}>
-            Enter a destination
-          </Text>
-          <View style={styles.nowPill}>
-            <Ionicons name="time-outline" size={14} color={colors.ink} />
-            <Text variant="label" color={colors.ink}>
-              Now
+        <View style={styles.searchBar}>
+          <Pressable
+            testID="search-bar"
+            style={styles.searchTap}
+            onPress={() => router.push('/(rider)/search')}
+          >
+            <Ionicons name="search" size={20} color={colors.textSecondary} />
+            <Text variant="bodyStrong" color={colors.textSecondary} numberOfLines={1}>
+              Enter a destination
             </Text>
-          </View>
-        </Pressable>
+          </Pressable>
+          <Pressable
+            testID="schedule-pill"
+            style={[styles.nowPill, scheduledAt != null && styles.nowPillActive]}
+            onPress={() => router.push('/(rider)/schedule')}
+          >
+            <Ionicons name="time-outline" size={14} color={scheduledAt ? colors.white : colors.ink} />
+            <Text variant="label" color={scheduledAt ? colors.white : colors.ink}>
+              {scheduleLabel}
+            </Text>
+          </Pressable>
+        </View>
 
         <ScrollView
           horizontal
@@ -176,7 +230,32 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     ...shadow.float,
   },
-  sideControls: { position: 'absolute', right: space.lg },
+  topRight: { flexDirection: 'row', alignItems: 'center', gap: space.sm },
+  badge: {
+    position: 'absolute',
+    top: -3,
+    right: -3,
+    minWidth: 18,
+    height: 18,
+    borderRadius: 9,
+    paddingHorizontal: 4,
+    backgroundColor: colors.amber,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 2,
+    borderColor: colors.canvas,
+  },
+  sideControls: { position: 'absolute', right: space.lg, gap: space.sm, alignItems: 'flex-end' },
+  aiBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    backgroundColor: colors.ink,
+    paddingHorizontal: space.md,
+    height: 44,
+    borderRadius: radius.pill,
+    ...shadow.float,
+  },
   sheet: {
     position: 'absolute',
     left: 0,
@@ -195,8 +274,10 @@ const styles = StyleSheet.create({
     height: 5,
     borderRadius: 3,
     backgroundColor: colors.surfaceAlt,
-    marginBottom: space.lg,
+    marginBottom: space.md,
   },
+  fromRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: space.md },
+  fromDot: { width: 9, height: 9, borderRadius: 5, backgroundColor: colors.jade },
   searchBar: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -207,6 +288,7 @@ const styles = StyleSheet.create({
     height: 60,
     marginTop: space.xs,
   },
+  searchTap: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: 10, height: '100%' },
   nowPill: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -216,6 +298,7 @@ const styles = StyleSheet.create({
     height: 32,
     borderRadius: radius.pill,
   },
+  nowPillActive: { backgroundColor: colors.jade },
   chips: { gap: space.sm, paddingVertical: space.lg, paddingRight: space.xl },
   chip: {
     flexDirection: 'row',

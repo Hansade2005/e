@@ -14,6 +14,22 @@ entirely by **OpenStreetMap** — no API keys, no map billing.
 
 ## Features
 
+### Onboarding
+- **Rider:** a short intro (how it works, fair pricing, location priming)
+- **Driver:** multi-step setup (vehicle, license/insurance, payout) that gates
+  going online and writes a `driver_profiles` row
+
+### Live matching, chat & presence (poll-based, no Realtime)
+- **Real matching:** a rider's request becomes a `rides` row (status `requested`);
+  online drivers poll open requests, claim one (writing a driver summary), and
+  both sides poll the row to follow status. Guests/offline use the local
+  simulation unchanged. See `src/lib/rides.ts` + `supabase/migrations/0003_live_matching.sql`.
+- **Chat** syncs against the matched ride (`messages` table) by polling; falls
+  back to the scripted demo chat when there's no live ride.
+- **Driver presence:** drivers upsert position to `driver_locations` while online;
+  the rider map polls online drivers. Polling (not Realtime) keeps connection/
+  credit costs down. See `src/lib/live.ts` + `supabase/migrations/0002_chat_presence.sql`.
+
 ### Rider
 - **Onboarding hero** with the route-line signature and live stats
 - **Email/password auth** (Supabase) + role picker + one-tap **guest demo**
@@ -27,18 +43,31 @@ entirely by **OpenStreetMap** — no API keys, no map billing.
   with an animated car moving along the route
 - **Receipt + tip + rating**, Empower-style "driver keeps 100%" comparison
 - **Ride history** persisted to Supabase (`rides`) so trips show across devices
+- **Trip details + one-tap rebook** from any past trip
+- **Schedule a ride** for later (the time pill on home)
+- **Ez Wallet + promo codes** — apply codes (e.g. EZ10), credit auto-applies at checkout
+- **AI ride assistant ("Ask Ez")** powered by the A0 LLM, with an offline fallback
+- **Activity feed** with unread badge (ride, scheduled, and promo notifications)
+- **In-app chat** (both rider↔driver), plus a **Safety toolkit** (share trip,
+  emergency dialer, trusted contacts)
 - **Saved places** — Home / Work / favorites stored in Supabase (`saved_places`)
+- **Own Ez2go** — riders can buy into the platform too (community ownership):
+  shares at $5, paid by card or Ez Wallet, with a running stake
 - **Profile**, **payment methods**
 
 ### Driver
-- **Go online/offline**, simulated **incoming requests** with accept/decline
-- **Trip stepper**: to pickup → arrived → start → complete
-- **Earnings dashboard**: weekly total, daily bar chart, instant cash-out,
-  "$0.00 in platform fees"
+- **Go online/offline**, **incoming requests** (real open requests when matched,
+  else simulated) with accept/decline
+- **Trip stepper**: to pickup → arrived → start → complete; **rate the rider**
+- **Earnings dashboard**: weekly total, daily bar chart, instant cash-out
+- **Invest in Ez2go**: at cash-out, drivers can put part of their earnings toward
+  platform equity (shares + ownership %), tracked in `driver_investments`
 
 ### Platform
 - **OpenStreetMap** maps via Leaflet on web (`react-leaflet`); native fallback
   is dependency-free and documents how to drop in `react-native-maps` + OSM tiles
+- **AI** via the A0 LLM (`src/lib/ai.ts`) — the "Ask Ez" assistant; degrades to
+  a helpful offline reply when the API is unreachable.
 - **Pluggable payments** — the whole app talks to a `PaymentProvider` interface.
   Today it's `MockPaymentProvider`; swapping in **Stripe** is a one-line change
   in `src/lib/payments/index.ts` (see that file's notes)

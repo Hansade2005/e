@@ -66,9 +66,9 @@ function Recenter({
     try {
       if (route && route.length > 1) {
         const bounds = L.latLngBounds(route.map((c) => [c.lat, c.lng] as [number, number]));
-        map.fitBounds(bounds, { padding: [60, 60], maxZoom: 15, animate: true });
+        map.fitBounds(bounds, { padding: [60, 60], maxZoom: 15, animate: false });
       } else {
-        map.setView([center.lat, center.lng], 14, { animate: true });
+        map.setView([center.lat, center.lng], 14, { animate: false });
       }
     } catch {
       /* map is unmounting */

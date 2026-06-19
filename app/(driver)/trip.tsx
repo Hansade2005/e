@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { View, StyleSheet, Pressable } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
@@ -8,6 +8,7 @@ import { Text } from '@/components/ui/Text';
 import { Avatar } from '@/components/ui/Avatar';
 import { Eyebrow } from '@/components/ui/Eyebrow';
 import { Button } from '@/components/ui/Button';
+import { Stars } from '@/components/ui/Stars';
 import { useDriver } from '@/store/driver';
 import { formatMoney } from '@/constants/vehicles';
 import { colors, radius, shadow, space, fonts } from '@/theme/tokens';
@@ -20,7 +21,8 @@ const PHASE_ACTION: Record<string, { label: string; sub: string }> = {
 
 export default function DriverTrip() {
   const insets = useSafeAreaInsets();
-  const { phase, request, advance, finish } = useDriver();
+  const { phase, request, advance, rateRider, finish } = useDriver();
+  const [riderStars, setRiderStars] = useState(5);
 
   useEffect(() => {
     if (!request) router.replace('/(driver)/dashboard');
@@ -33,6 +35,7 @@ export default function DriverTrip() {
   const action = PHASE_ACTION[phase];
 
   async function done() {
+    await rateRider(riderStars);
     await finish();
     // Pop back to the existing dashboard rather than stacking a new one.
     if (router.canGoBack()) router.back();
@@ -76,6 +79,17 @@ export default function DriverTrip() {
               </Text>
             </View>
           </View>
+
+          {/* Rate the rider */}
+          <View style={styles.rateRow}>
+            <Avatar name={request.rider} color={colors.amber} size={40} />
+            <View style={{ flex: 1 }}>
+              <Text variant="bodyStrong" color={colors.onInk}>Rate {request.rider}</Text>
+              <Text variant="small" color={colors.onInkMuted}>How was your rider?</Text>
+            </View>
+            <Stars value={riderStars} size={22} onChange={setRiderStars} />
+          </View>
+
           <Button label="Back to driving" variant="go" testID="driver-done" onPress={done} />
         </View>
       ) : (
@@ -94,7 +108,11 @@ export default function DriverTrip() {
             <Pressable style={styles.iconBtn} testID="driver-call">
               <Ionicons name="call" size={18} color={colors.onInk} />
             </Pressable>
-            <Pressable style={styles.iconBtn} testID="driver-message">
+            <Pressable
+              style={styles.iconBtn}
+              testID="driver-message"
+              onPress={() => router.push('/(driver)/chat')}
+            >
               <Ionicons name="chatbubble-ellipses" size={18} color={colors.onInk} />
             </Pressable>
           </View>
@@ -191,4 +209,14 @@ const styles = StyleSheet.create({
     padding: space.md,
     marginTop: space.md,
   },
+  rateRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: space.md,
+    backgroundColor: colors.inkSoft,
+    borderRadius: radius.lg,
+    padding: space.md,
+    marginBottom: space.md,
+  },
 });
+

@@ -67,6 +67,25 @@ await step('book-ride', async () => {
 });
 await page.screenshot({ path: `${SHOTS}/r3-tracking.png` });
 
+// Driver appears once matched — exercise chat + safety before the trip finishes.
+await step('chat-with-driver', async () => {
+  await tid('message-driver').waitFor({ timeout: 15000 });
+  await tid('message-driver').click();
+  await tid('chat-input').waitFor({ timeout: 10000 });
+  await tid('chat-input').fill('On my way out');
+  await tid('chat-send').click();
+  await page.locator('[data-testid="quick-Thanks!"]').click();
+  await tid('chat-back').click();
+  await tid('share-trip').waitFor({ timeout: 10000 }); // back on tracking
+});
+
+await step('safety-center', async () => {
+  await tid('share-trip').click();
+  await tid('safety-share').click({ timeout: 10000 });
+  await tid('safety-back').click();
+  await tid('share-trip').waitFor({ timeout: 10000 });
+});
+
 await step('ride-completes', async () => {
   await tid('complete-done').waitFor({ timeout: 60000 });
 });
@@ -75,6 +94,20 @@ await page.screenshot({ path: `${SHOTS}/r4-complete.png` });
 await step('finish-ride', async () => {
   await tid('tip-5').click().catch(() => {});
   await tid('complete-done').click();
+  await tid('search-bar').waitFor({ timeout: 15000 });
+});
+
+// Trip details + rebook from history (uses the trip we just completed).
+await step('trip-details-rebook', async () => {
+  await tid('open-profile').click();
+  await tid('menu-history').click({ timeout: 10000 });
+  await page.locator('[data-testid^="trip-"]').first().click({ timeout: 10000 });
+  await tid('rebook').waitFor({ timeout: 15000 });
+  await page.screenshot({ path: `${SHOTS}/r5-trip-details.png` });
+  await tid('rebook').click();
+  await tid('book-ride').waitFor({ timeout: 20000 }); // rebooked → select-ride
+  // Reset to a clean home for the driver leg.
+  await page.reload({ waitUntil: 'networkidle' });
   await tid('search-bar').waitFor({ timeout: 15000 });
 });
 
@@ -99,12 +132,21 @@ await page.screenshot({ path: `${SHOTS}/d2-offer.png` });
 await step('accept-and-drive', async () => {
   await tid('accept-ride').click();
   await tid('driver-advance').waitFor({ timeout: 10000 });
+  // Driver-side chat mirrors the rider chat.
+  await tid('driver-message').click();
+  await tid('chat-input').waitFor({ timeout: 10000 });
+  await tid('chat-input').fill('On my way');
+  await tid('chat-send').click();
+  await page.locator('[data-testid="msg-me"]').first().waitFor({ timeout: 8000 });
+  await tid('chat-back').click();
+  await tid('driver-advance').waitFor({ timeout: 10000 });
   await tid('driver-advance').click(); // to_pickup -> arrived
   await page.waitForTimeout(400);
   await tid('driver-advance').click(); // arrived -> in_progress
   await page.waitForTimeout(400);
   await tid('driver-advance').click(); // in_progress -> completed
   await tid('driver-done').waitFor({ timeout: 10000 });
+  await page.locator('[data-testid="star-4"]').click(); // rate the rider
 });
 await page.screenshot({ path: `${SHOTS}/d3-trip-complete.png` });
 
@@ -118,6 +160,16 @@ await step('view-earnings', async () => {
   await tid('earnings-back').waitFor({ timeout: 10000 });
 });
 await page.screenshot({ path: `${SHOTS}/d4-earnings.png` });
+
+await step('cash-out-and-invest', async () => {
+  await tid('open-cashout').click();
+  await tid('cashout-confirm').waitFor({ timeout: 10000 });
+  await tid('invest-50').click(); // put half toward Ez2go equity
+  await page.screenshot({ path: `${SHOTS}/d5-cashout.png` });
+  await tid('cashout-confirm').click();
+  await tid('cashout-done').waitFor({ timeout: 10000 });
+});
+await page.screenshot({ path: `${SHOTS}/d6-stake.png` });
 
 console.log(`\nConsole/page errors: ${errors.length}`);
 errors.slice(0, 15).forEach((e) => console.log('  •', e));

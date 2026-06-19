@@ -11,6 +11,7 @@ import { Eyebrow } from '@/components/ui/Eyebrow';
 import { useAuth } from '@/store/auth';
 import { useDriver, DRIVER_HOME } from '@/store/driver';
 import { nearbyDrivers } from '@/lib/geo';
+import { publishPresence } from '@/lib/live';
 import { formatMoney } from '@/constants/vehicles';
 import { colors, radius, shadow, space, fonts } from '@/theme/tokens';
 
@@ -35,11 +36,30 @@ export default function Dashboard() {
     load();
   }, [load]);
 
+  // Presence: while online, broadcast position to driver_locations on an
+  // interval (poll-based — no Realtime). No-op for guest/offline sessions.
+  useEffect(() => {
+    const driverId = user?.id;
+    if (!driverId) return;
+    if (!online) {
+      void publishPresence({ driverId, online: false });
+      return;
+    }
+    void publishPresence({ driverId, pos: DRIVER_HOME, online: true });
+    const handle = setInterval(() => {
+      void publishPresence({ driverId, pos: DRIVER_HOME, online: true });
+    }, 8000);
+    return () => {
+      clearInterval(handle);
+      void publishPresence({ driverId, online: false });
+    };
+  }, [online, user?.id]);
+
   const riders = useMemo(() => nearbyDrivers(DRIVER_HOME, 5), []);
 
-  function onAccept() {
-    accept();
-    router.push('/(driver)/trip');
+  async function onAccept() {
+    const ok = await accept();
+    if (ok) router.push('/(driver)/trip');
   }
 
   async function toRider() {
