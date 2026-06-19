@@ -29,6 +29,8 @@ export default function SignIn() {
       await signIn(email.trim(), password);
       const role = useAuth.getState().user?.role;
       router.replace(role === 'driver' ? '/(driver)/dashboard' : '/(rider)/home');
+    } catch (e: any) {
+      setError(e?.message ?? 'Could not sign in. Check your email and password.');
     } finally {
       setLoading(false);
     }

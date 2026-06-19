@@ -34,6 +34,15 @@ type AuthState = {
 };
 
 const LOCAL_KEY = 'ez2go.profile';
+
+// Distinguishes a real auth rejection (bad credentials, user exists) from the
+// backend simply being unreachable. Supabase tags its errors with __isAuthError
+// and an HTTP status; a network failure (fetch TypeError) has neither.
+function isAuthError(e: unknown): boolean {
+  const err = e as { __isAuthError?: boolean; status?: number; name?: string } | null;
+  return !!(err && (err.__isAuthError || typeof err.status === 'number' || /auth/i.test(err.name ?? '')));
+}
+
 const COLORS = ['#00C2A8', '#FF8A3D', '#5B6472', '#1FB57A', '#7A5BD6', '#E5484D'];
 
 function makeProfile(partial: Partial<Profile> & { email: string; name: string }): Profile {
@@ -116,12 +125,13 @@ export const useAuth = create<AuthState>((set, get) => ({
     let name: string | undefined;
     try {
       const { data, error } = await supabase.auth.signInWithPassword({ email, password });
-      if (!error && data.user) {
-        id = data.user.id;
-        name = (data.user.user_metadata?.name as string) ?? undefined;
-      }
-    } catch {
-      /* fall back to local session below */
+      if (error) throw error; // surface invalid credentials to the UI
+      id = data.user?.id;
+      name = (data.user?.user_metadata?.name as string) ?? undefined;
+    } catch (e) {
+      // A genuine auth rejection must reach the UI; only an unreachable backend
+      // falls through to an offline session (demo / poor-connectivity support).
+      if (isAuthError(e)) throw e;
     }
     const profile = makeProfile({
       id,
@@ -137,14 +147,17 @@ export const useAuth = create<AuthState>((set, get) => ({
   async signUp({ name, email, password, role }) {
     let id: string | undefined;
     try {
-      const { data } = await supabase.auth.signUp({
+      const { data, error } = await supabase.auth.signUp({
         email,
         password,
         options: { data: { name, role } },
       });
+      if (error) throw error; // surface "already registered", weak password, etc.
       id = data.user?.id;
-    } catch {
-      /* email confirmation / offline — continue with a local session */
+    } catch (e) {
+      // Email-confirmation projects return no session (not an error) — that's
+      // fine, we proceed locally. Real signup errors are surfaced to the UI.
+      if (isAuthError(e)) throw e;
     }
     const profile = makeProfile({ id, name, email, role });
     await persist(profile);

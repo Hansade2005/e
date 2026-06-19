@@ -117,13 +117,22 @@ create trigger trg_profiles_updated
 -- ============================================================================
 create or replace function public.handle_new_user()
 returns trigger language plpgsql security definer set search_path = public as $$
+declare
+  user_role ez_role;
 begin
+  -- An unexpected role value would otherwise raise and block registration.
+  begin
+    user_role := coalesce((new.raw_user_meta_data->>'role')::ez_role, 'rider'::ez_role);
+  exception when others then
+    user_role := 'rider'::ez_role;
+  end;
+
   insert into public.profiles (id, email, full_name, role)
   values (
     new.id,
     new.email,
     coalesce(new.raw_user_meta_data->>'name', split_part(new.email, '@', 1)),
-    coalesce((new.raw_user_meta_data->>'role')::ez_role, 'rider')
+    user_role
   )
   on conflict (id) do nothing;
   return new;
@@ -167,8 +176,13 @@ create policy "rides read" on public.rides
   for select using (auth.uid() = rider_id or auth.uid() = driver_id);
 create policy "rides insert" on public.rides
   for insert with check (auth.uid() = rider_id);
+-- WITH CHECK prevents a participant from reassigning a ride to someone else.
+-- NOTE: for production, gate sensitive columns (fare, payment_status) behind
+-- security-definer RPCs rather than direct client updates — this policy still
+-- lets a participant edit other columns on their own ride.
 create policy "rides update" on public.rides
-  for update using (auth.uid() = rider_id or auth.uid() = driver_id);
+  for update using (auth.uid() = rider_id or auth.uid() = driver_id)
+  with check (auth.uid() = rider_id or auth.uid() = driver_id);
 
 -- ============================================================================
 -- Realtime (drivers watch for new requests, riders watch their ride)

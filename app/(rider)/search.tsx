@@ -22,6 +22,7 @@ export default function Search() {
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
+    let active = true;
     if (timer.current) clearTimeout(timer.current);
     if (query.trim().length < 2) {
       setResults([]);
@@ -31,10 +32,13 @@ export default function Search() {
     setLoading(true);
     timer.current = setTimeout(async () => {
       const r = await searchPlaces(query);
+      // Ignore results from a superseded query or after unmount.
+      if (!active) return;
       setResults(r);
       setLoading(false);
     }, 350);
     return () => {
+      active = false;
       if (timer.current) clearTimeout(timer.current);
     };
   }, [query]);

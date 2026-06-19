@@ -49,16 +49,24 @@ export default function PaymentMethods() {
 
   async function addCard() {
     const digits = number.replace(/\s/g, '');
-    const [mm, yy] = exp.split('/').map((s) => parseInt(s.trim(), 10));
-    if (digits.length < 12 || !mm || !yy || cvc.length < 3) return;
+    const parts = exp.split('/');
+    if (parts.length !== 2) return;
+    const mm = parseInt(parts[0].trim(), 10);
+    const yy = parseInt(parts[1].trim(), 10);
+    if (digits.length < 12 || isNaN(mm) || isNaN(yy) || mm < 1 || mm > 12 || cvc.length < 3) {
+      return;
+    }
+    const expYear = yy < 100 ? 2000 + yy : yy; // accept 2-digit or 4-digit year
     setBusy(true);
     try {
-      await payments.addCard({ number: digits, expMonth: mm, expYear: 2000 + yy, cvc });
+      await payments.addCard({ number: digits, expMonth: mm, expYear, cvc });
       setNumber('');
       setExp('');
       setCvc('');
       setAdding(false);
       await refresh();
+    } catch (err) {
+      console.error('Failed to add card:', err);
     } finally {
       setBusy(false);
     }

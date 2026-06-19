@@ -238,15 +238,15 @@ function animateLeg(
   onDone: () => void,
 ) {
   const start = Date.now();
+  // Capture the leg's total time once. Reading the (already-decremented) store
+  // value each tick would compound (1 - t) into an exponential decay.
+  const totalMin = legKey === 'pickupRoute' ? get().etaMin : get().durationMin;
   if (ticker) clearInterval(ticker);
   ticker = setInterval(() => {
     const t = Math.min(1, (Date.now() - start) / durationMs);
     const coords = get()[legKey];
     const pos = pointAlong(coords, t);
-    const remaining =
-      legKey === 'pickupRoute'
-        ? Math.max(0, Math.round(get().etaMin * (1 - t)))
-        : Math.max(0, Math.round(get().durationMin * (1 - t)));
+    const remaining = Math.max(0, Math.round(totalMin * (1 - t)));
     set({ driverPos: pos, progress: t, etaMin: remaining });
     if (t >= 1) {
       if (ticker) clearInterval(ticker);
