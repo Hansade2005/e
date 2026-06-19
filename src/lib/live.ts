@@ -156,6 +156,48 @@ export async function fetchOnlineDrivers(freshSeconds = 30): Promise<OnlineDrive
   }
 }
 
+/** One driver's latest known location (for tracking a matched driver). */
+export async function fetchDriverLocation(driverId: string): Promise<OnlineDriver | null> {
+  if (!isRemoteId(driverId)) return null;
+  try {
+    const { data, error } = await supabase
+      .from('driver_locations')
+      .select('id, lat, lng, heading, updated_at')
+      .eq('id', driverId)
+      .single();
+    if (error || !data || data.lat == null || data.lng == null) return null;
+    return {
+      id: data.id,
+      pos: { lat: data.lat, lng: data.lng },
+      heading: data.heading ?? undefined,
+      updatedAt: data.updated_at,
+    };
+  } catch {
+    return null;
+  }
+}
+
+/** Poll a specific driver's location on an interval. Returns stop(). */
+export function pollDriverLocation(
+  driverId: string,
+  onUpdate: (loc: OnlineDriver | null) => void,
+  intervalMs = 3000,
+): () => void {
+  if (!isRemoteId(driverId)) return () => {};
+  let stopped = false;
+  const tick = async () => {
+    if (stopped) return;
+    const loc = await fetchDriverLocation(driverId);
+    if (!stopped) onUpdate(loc);
+  };
+  void tick();
+  const h = setInterval(tick, intervalMs);
+  return () => {
+    stopped = true;
+    clearInterval(h);
+  };
+}
+
 /** Poll online drivers on an interval. Returns stop(). */
 export function pollOnlineDrivers(
   onUpdate: (drivers: OnlineDriver[]) => void,

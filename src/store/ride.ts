@@ -2,6 +2,7 @@ import { create } from 'zustand';
 import {
   DEFAULT_CENTER,
   getRoute,
+  haversineKm,
   pointAlong,
   type LatLng,
   type Place,
@@ -12,6 +13,7 @@ import { payments } from '@/lib/payments';
 import { storage } from '@/lib/storage';
 import { fetchRidesRemote, saveRideRemote, updateRideRemote, isRemoteId } from '@/lib/db';
 import { createRideRequest, pollRide, cancelRideRow, completeRideRow } from '@/lib/rides';
+import { pollDriverLocation } from '@/lib/live';
 import { useAuth } from '@/store/auth';
 import { useNotifications } from '@/store/notifications';
 
@@ -92,17 +94,27 @@ const SCHEDULED_KEY = 'ez2go.scheduled';
 let timers: ReturnType<typeof setTimeout>[] = [];
 let ticker: ReturnType<typeof setInterval> | null = null;
 let liveStop: (() => void) | null = null;
+let presenceStop: (() => void) | null = null;
 
-function clearTimers() {
+// Stop only the local simulation (used when a real driver takes over).
+function clearSim() {
   timers.forEach(clearTimeout);
   timers = [];
   if (ticker) {
     clearInterval(ticker);
     ticker = null;
   }
+}
+
+function clearTimers() {
+  clearSim();
   if (liveStop) {
     liveStop();
     liveStop = null;
+  }
+  if (presenceStop) {
+    presenceStop();
+    presenceStop = null;
   }
 }
 
@@ -230,9 +242,28 @@ export const useRide = create<RideState>((set, get) => ({
       });
       if (liveId) {
         set({ liveRideId: liveId });
+        let switched = false;
         liveStop = pollRide(liveId, (row) => {
-          if (row.driverId && row.driverName && get().status !== 'completed') {
-            // A real driver claimed the ride — show them instead of the sim.
+          if (get().status === 'completed') return;
+          if (row.status === 'cancelled') return;
+
+          if (row.driverId && row.driverName) {
+            // A real driver claimed the ride. Hand off from the simulation to
+            // live tracking: stop the sim, follow the driver's real position.
+            if (!switched) {
+              switched = true;
+              clearSim();
+              if (presenceStop) presenceStop();
+              presenceStop = pollDriverLocation(row.driverId, (loc) => {
+                if (!loc) return;
+                const st = get().status;
+                const target = st === 'in_progress' ? get().destination : get().pickup;
+                const eta = target
+                  ? Math.max(1, Math.round((haversineKm(loc.pos, target) / 32) * 60))
+                  : get().etaMin;
+                set({ driverPos: loc.pos, etaMin: eta });
+              });
+            }
             set({
               driver: {
                 id: row.driverId,
@@ -245,6 +276,18 @@ export const useRide = create<RideState>((set, get) => ({
                 avatarColor: '#00C2A8',
               },
             });
+          }
+
+          // Mirror the status the real driver drives.
+          if (row.status === 'arriving') set({ status: 'arriving' });
+          else if (row.status === 'arrived') set({ status: 'arrived' });
+          else if (row.status === 'in_progress') set({ status: 'in_progress' });
+          else if (row.status === 'completed') {
+            if (presenceStop) {
+              presenceStop();
+              presenceStop = null;
+            }
+            if (get().status !== 'completed') void completeRide(get, set);
           }
         });
       }
