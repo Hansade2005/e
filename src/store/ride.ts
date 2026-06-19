@@ -10,7 +10,8 @@ import { estimateFare, formatMoney, VEHICLE_CLASSES, type Fare, type VehicleClas
 import { pickDriver, type DriverProfile } from '@/constants/drivers';
 import { payments } from '@/lib/payments';
 import { storage } from '@/lib/storage';
-import { fetchRidesRemote, saveRideRemote, updateRideRemote } from '@/lib/db';
+import { fetchRidesRemote, saveRideRemote, updateRideRemote, isRemoteId } from '@/lib/db';
+import { createRideRequest, pollRide, cancelRideRow, completeRideRow } from '@/lib/rides';
 import { useAuth } from '@/store/auth';
 import { useNotifications } from '@/store/notifications';
 
@@ -70,6 +71,7 @@ type RideState = {
   lastReceipt: { fare: number; vehicleName: string } | null;
   history: RideRecord[];
   scheduled: ScheduledRide[];
+  liveRideId: string | null; // Supabase rides.id for live matching, when authed
 
   setPickup: (p: Place) => void;
   setDestination: (p: Place | null) => Promise<void>;
@@ -89,6 +91,7 @@ const HISTORY_KEY = 'ez2go.history';
 const SCHEDULED_KEY = 'ez2go.scheduled';
 let timers: ReturnType<typeof setTimeout>[] = [];
 let ticker: ReturnType<typeof setInterval> | null = null;
+let liveStop: (() => void) | null = null;
 
 function clearTimers() {
   timers.forEach(clearTimeout);
@@ -96,6 +99,10 @@ function clearTimers() {
   if (ticker) {
     clearInterval(ticker);
     ticker = null;
+  }
+  if (liveStop) {
+    liveStop();
+    liveStop = null;
   }
 }
 
@@ -132,6 +139,7 @@ export const useRide = create<RideState>((set, get) => ({
   lastReceipt: null,
   history: [],
   scheduled: [],
+  liveRideId: null,
 
   setPickup(p) {
     set({ pickup: p });
@@ -202,9 +210,47 @@ export const useRide = create<RideState>((set, get) => ({
     const { pickup, destination, route } = get();
     if (!pickup || !destination) return;
     clearTimers();
-    set({ status: 'searching', progress: 0 });
+    set({ status: 'searching', progress: 0, liveRideId: null });
 
-    // 1) match a driver
+    // Publish a real ride request so an online driver can match (best-effort;
+    // null for guest/offline). The local simulation below still drives the
+    // rider's map/animation; if a real driver claims the row we adopt their
+    // identity and chat goes live.
+    const userId = useAuth.getState().user?.id;
+    if (isRemoteId(userId)) {
+      const q = get().quotes.find((x) => x.vehicle.id === get().selectedVehicleId) ?? get().quotes[0];
+      const liveId = await createRideRequest({
+        riderId: userId,
+        pickup,
+        destination,
+        vehicleClass: get().selectedVehicleId,
+        fare: q?.fare.total ?? 0,
+        distanceKm: get().distanceKm,
+        durationMin: get().durationMin,
+      });
+      if (liveId) {
+        set({ liveRideId: liveId });
+        liveStop = pollRide(liveId, (row) => {
+          if (row.driverId && row.driverName && get().status !== 'completed') {
+            // A real driver claimed the ride — show them instead of the sim.
+            set({
+              driver: {
+                id: row.driverId,
+                name: row.driverName,
+                rating: 4.95,
+                trips: 0,
+                car: row.driverVehicle ?? 'Vehicle',
+                color: '',
+                plate: row.driverPlate ?? '',
+                avatarColor: '#00C2A8',
+              },
+            });
+          }
+        });
+      }
+    }
+
+    // 1) match a driver (local simulation / fallback)
     timers.push(
       setTimeout(async () => {
         const driver = pickDriver();
@@ -239,7 +285,9 @@ export const useRide = create<RideState>((set, get) => ({
   },
 
   cancelRide() {
+    const liveId = get().liveRideId;
     clearTimers();
+    if (liveId) void cancelRideRow(liveId);
     const { pickup, destination } = get();
     set({
       status: destination ? 'planning' : 'idle',
@@ -247,6 +295,7 @@ export const useRide = create<RideState>((set, get) => ({
       driverPos: null,
       pickupRoute: [],
       progress: 0,
+      liveRideId: null,
     });
     void pickup; // keep pickup
   },
@@ -265,6 +314,7 @@ export const useRide = create<RideState>((set, get) => ({
       pickupRoute: [],
       progress: 0,
       lastReceipt: null,
+      liveRideId: null,
       // scheduledAt is a pickup-time preference — it survives reset() (which
       // runs on every home focus) and is cleared explicitly once a ride is booked.
     });
@@ -403,10 +453,16 @@ async function completeRide(get: () => RideState, set: (p: Partial<RideState>) =
     body: `${vehicle.vehicle.name} to ${record.destination.name} · ${formatMoney(fare)}`,
   });
 
-  // Persist to Supabase (no-op for guest/offline) and remember the row id so a
-  // later tip/rating can update the same record.
+  // Persist to Supabase. A live ride already has a row (created at request
+  // time) — close it out; otherwise insert a completed record.
   const userId = useAuth.getState().user?.id;
-  if (userId) {
+  const liveId = s.liveRideId;
+  if (liveId) {
+    await completeRideRow(liveId, { fare });
+    const next = get().history.map((r) => (r.id === record.id ? { ...r, remoteId: liveId } : r));
+    set({ history: next });
+    await storage.setItem(HISTORY_KEY, JSON.stringify(next));
+  } else if (userId) {
     const remoteId = await saveRideRemote(record, userId);
     if (remoteId) {
       const next = get().history.map((r) => (r.id === record.id ? { ...r, remoteId } : r));

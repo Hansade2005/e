@@ -57,9 +57,9 @@ export default function Dashboard() {
 
   const riders = useMemo(() => nearbyDrivers(DRIVER_HOME, 5), []);
 
-  function onAccept() {
-    accept();
-    router.push('/(driver)/trip');
+  async function onAccept() {
+    const ok = await accept();
+    if (ok) router.push('/(driver)/trip');
   }
 
   async function toRider() {

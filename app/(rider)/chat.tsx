@@ -2,6 +2,7 @@ import { router } from 'expo-router';
 import { Platform, Linking } from 'react-native';
 import { Chat } from '@/components/Chat';
 import { useRide } from '@/store/ride';
+import { useAuth } from '@/store/auth';
 
 const QUICK = ["I'm coming out now", 'Please wait 2 min', 'Where are you?', 'Thanks!'];
 
@@ -13,6 +14,8 @@ const REPLIES: Record<string, string> = {
 
 export default function RiderChat() {
   const driver = useRide((s) => s.driver);
+  const liveRideId = useRide((s) => s.liveRideId);
+  const userId = useAuth((s) => s.user?.id);
 
   function autoReply(text: string): string {
     // Resolve the vehicle dynamically so the reply always matches the real ride.
@@ -32,6 +35,7 @@ export default function RiderChat() {
       greeting={`Hi! This is ${driver?.name?.split(' ')[0] ?? 'your driver'}. On my way to you now.`}
       quickReplies={QUICK}
       autoReply={autoReply}
+      live={liveRideId && userId ? { rideId: liveRideId, senderId: userId, senderRole: 'rider' } : undefined}
       onBack={() => router.back()}
       onCall={() => {
         if (Platform.OS !== 'web') Linking.openURL('tel:+18165550199').catch(() => {});

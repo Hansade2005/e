@@ -1,6 +1,16 @@
 import { create } from 'zustand';
 import { DEFAULT_CENTER, getRoute, localPlaces, type LatLng, type Place } from '@/lib/geo';
 import { storage } from '@/lib/storage';
+import { useAuth } from '@/store/auth';
+import { useOnboarding } from '@/store/onboarding';
+import { isRemoteId } from '@/lib/db';
+import {
+  claimRide,
+  fetchRiderName,
+  pollOpenRequests,
+  setRideStatus,
+  type RideRow,
+} from '@/lib/rides';
 
 export type RideRequest = {
   id: string;
@@ -13,6 +23,7 @@ export type RideRequest = {
   etaMin: number;
   pickupRoute: LatLng[];
   tripRoute: LatLng[];
+  liveId?: string; // Supabase rides.id when this is a real request
 };
 
 export type DriverPhase =
@@ -36,7 +47,7 @@ type DriverState = {
   goOnline: () => void;
   goOffline: () => void;
   receiveOffer: () => Promise<void>;
-  accept: () => void;
+  accept: () => Promise<boolean>;
   decline: () => void;
   advance: () => void;
   finish: () => Promise<void>;
@@ -45,6 +56,40 @@ type DriverState = {
 
 const KEY = 'ez2go.driver.stats';
 let offerTimer: ReturnType<typeof setTimeout> | null = null;
+let openPollStop: (() => void) | null = null;
+
+// Build a presentable request from a real open ride row (computes routes).
+async function buildRequestFromRow(row: RideRow): Promise<RideRequest> {
+  const driverStart: LatLng = { lat: row.pickup.lat + 0.01, lng: row.pickup.lng - 0.012 };
+  const [toPickup, trip] = await Promise.all([
+    getRoute(driverStart, row.pickup),
+    getRoute(row.pickup, row.destination),
+  ]);
+  const riderName = (await fetchRiderName(row.riderId)) ?? 'Rider';
+  return {
+    id: row.id,
+    liveId: row.id,
+    rider: riderName,
+    riderRating: 4.9,
+    pickup: row.pickup,
+    destination: row.destination,
+    fare: row.fare,
+    distanceMi: Math.round(row.distanceKm * 0.621371 * 10) / 10,
+    etaMin: Math.max(1, Math.round(toPickup.durationMin)),
+    pickupRoute: toPickup.coords,
+    tripRoute: trip.coords,
+  };
+}
+
+function driverSummary(): { name: string; vehicle: string; plate: string } {
+  const user = useAuth.getState().user;
+  const d = useOnboarding.getState().driver;
+  return {
+    name: user?.name ?? 'Driver',
+    vehicle: d ? `${d.color} ${d.make} ${d.model}`.trim() : 'Vehicle',
+    plate: d?.plate ?? '',
+  };
+}
 
 const RIDERS = [
   { name: 'Jordan P.', rating: 4.9 },
@@ -91,11 +136,31 @@ export const useDriver = create<DriverState>((set, get) => ({
 
   goOnline() {
     set({ online: true, phase: 'online' });
-    get().receiveOffer();
+    get().receiveOffer(); // simulated fallback offer
+
+    // Real open requests from other devices (preferred over the sim offer).
+    if (openPollStop) openPollStop();
+    const driverId = useAuth.getState().user?.id;
+    if (isRemoteId(driverId)) {
+      openPollStop = pollOpenRequests(async (rows) => {
+        if (!get().online || get().phase !== 'online') return;
+        const row = rows.find((r) => r.riderId !== driverId);
+        if (!row) return;
+        const req = await buildRequestFromRow(row);
+        if (get().online && get().phase === 'online') {
+          if (offerTimer) clearTimeout(offerTimer); // cancel the sim offer
+          set({ request: req, phase: 'offered' });
+        }
+      });
+    }
   },
 
   goOffline() {
     if (offerTimer) clearTimeout(offerTimer);
+    if (openPollStop) {
+      openPollStop();
+      openPollStop = null;
+    }
     set({ online: false, phase: 'offline', request: null });
   },
 
@@ -110,8 +175,22 @@ export const useDriver = create<DriverState>((set, get) => ({
     }, 2600);
   },
 
-  accept() {
-    if (get().request) set({ phase: 'to_pickup' });
+  async accept() {
+    const req = get().request;
+    if (!req) return false;
+    // Real request: atomically claim the row; bail if another driver won it.
+    if (req.liveId) {
+      const driverId = useAuth.getState().user?.id;
+      if (driverId) {
+        const ok = await claimRide(req.liveId, driverId, driverSummary());
+        if (!ok) {
+          get().decline();
+          return false;
+        }
+      }
+    }
+    set({ phase: 'to_pickup' });
+    return true;
   },
 
   decline() {
@@ -121,13 +200,21 @@ export const useDriver = create<DriverState>((set, get) => ({
 
   advance() {
     const phase = get().phase;
-    if (phase === 'to_pickup') set({ phase: 'arrived' });
-    else if (phase === 'arrived') set({ phase: 'in_progress' });
-    else if (phase === 'in_progress') set({ phase: 'completed' });
+    const liveId = get().request?.liveId;
+    if (phase === 'to_pickup') {
+      set({ phase: 'arrived' });
+      if (liveId) void setRideStatus(liveId, 'arrived');
+    } else if (phase === 'arrived') {
+      set({ phase: 'in_progress' });
+      if (liveId) void setRideStatus(liveId, 'in_progress');
+    } else if (phase === 'in_progress') {
+      set({ phase: 'completed' });
+    }
   },
 
   async finish() {
     const req = get().request;
+    if (req?.liveId) await setRideStatus(req.liveId, 'completed');
     const fare = req?.fare ?? 0;
     const earningsToday = get().earningsToday + fare;
     const tripsToday = get().tripsToday + 1;
