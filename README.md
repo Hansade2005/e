@@ -27,6 +27,9 @@ entirely by **OpenStreetMap** — no API keys, no map billing.
   with an animated car moving along the route
 - **Receipt + tip + rating**, Empower-style "driver keeps 100%" comparison
 - **Ride history** persisted to Supabase (`rides`) so trips show across devices
+- **Trip details + one-tap rebook** from any past trip
+- **In-app driver chat** with quick replies, and a **Safety toolkit** (share
+  trip, emergency, trusted contacts)
 - **Saved places** — Home / Work / favorites stored in Supabase (`saved_places`)
 - **Profile**, **payment methods**
 

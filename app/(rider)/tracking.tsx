@@ -131,11 +131,19 @@ export default function Tracking() {
               <Ionicons name="call" size={18} color={colors.ink} />
               <Text variant="smallStrong">Call</Text>
             </Pressable>
-            <Pressable style={styles.actionBtn} testID="message-driver">
+            <Pressable
+              style={styles.actionBtn}
+              testID="message-driver"
+              onPress={() => router.push('/(rider)/chat')}
+            >
               <Ionicons name="chatbubble-ellipses" size={18} color={colors.ink} />
               <Text variant="smallStrong">Message</Text>
             </Pressable>
-            <Pressable style={styles.actionBtn} testID="share-trip">
+            <Pressable
+              style={styles.actionBtn}
+              testID="share-trip"
+              onPress={() => router.push('/(rider)/safety')}
+            >
               <Ionicons name="shield-checkmark" size={18} color={colors.ink} />
               <Text variant="smallStrong">Safety</Text>
             </Pressable>

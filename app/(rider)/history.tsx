@@ -46,7 +46,11 @@ export default function History() {
           </View>
         }
         renderItem={({ item }) => (
-          <View style={styles.card} testID={`trip-${item.id}`}>
+          <Pressable
+            style={styles.card}
+            testID={`trip-${item.id}`}
+            onPress={() => router.push({ pathname: '/(rider)/trip-details', params: { id: item.id } })}
+          >
             <View style={styles.cardTop}>
               <Eyebrow>{new Date(item.createdAt).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}</Eyebrow>
               <Text style={styles.fare}>{formatMoney(item.fare)}</Text>
@@ -74,7 +78,7 @@ export default function History() {
                 <Text variant="small" color={colors.textMuted}>Not rated</Text>
               )}
             </View>
-          </View>
+          </Pressable>
         )}
       />
     </View>

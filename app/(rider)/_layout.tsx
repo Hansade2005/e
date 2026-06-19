@@ -12,6 +12,8 @@ export default function RiderLayout() {
       <Stack.Screen name="search" options={{ animation: 'slide_from_bottom' }} />
       <Stack.Screen name="tracking" options={{ animation: 'fade' }} />
       <Stack.Screen name="complete" options={{ animation: 'slide_from_bottom' }} />
+      <Stack.Screen name="chat" options={{ animation: 'slide_from_bottom' }} />
+      <Stack.Screen name="safety" options={{ animation: 'slide_from_bottom' }} />
     </Stack>
   );
 }
