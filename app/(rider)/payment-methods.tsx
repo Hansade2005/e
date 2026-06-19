@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { View, StyleSheet, ScrollView, Pressable } from 'react-native';
+import { View, StyleSheet, ScrollView, Pressable, TextInput } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
@@ -9,6 +9,8 @@ import { Button } from '@/components/ui/Button';
 import { Eyebrow } from '@/components/ui/Eyebrow';
 import { payments, type PaymentMethod } from '@/lib/payments';
 import { useRide } from '@/store/ride';
+import { useWallet } from '@/store/wallet';
+import { formatMoney } from '@/constants/vehicles';
 import { colors, radius, space, fonts } from '@/theme/tokens';
 
 const BRAND_ICON: Record<string, keyof typeof Ionicons.glyphMap> = {
@@ -22,19 +24,29 @@ const BRAND_ICON: Record<string, keyof typeof Ionicons.glyphMap> = {
 export default function PaymentMethods() {
   const insets = useSafeAreaInsets();
   const setMethod = useRide((s) => s.setMethod);
+  const wallet = useWallet();
   const [methods, setMethods] = useState<PaymentMethod[]>([]);
   const [adding, setAdding] = useState(false);
   const [number, setNumber] = useState('');
   const [exp, setExp] = useState('');
   const [cvc, setCvc] = useState('');
   const [busy, setBusy] = useState(false);
+  const [promo, setPromo] = useState('');
+  const [promoMsg, setPromoMsg] = useState<{ ok: boolean; text: string } | null>(null);
 
   async function refresh() {
     setMethods(await payments.listMethods());
   }
   useEffect(() => {
     refresh();
+    wallet.load();
   }, []);
+
+  async function applyPromo() {
+    const res = await wallet.applyPromo(promo);
+    setPromoMsg({ ok: res.ok, text: res.message });
+    if (res.ok) setPromo('');
+  }
 
   async function makeDefault(id: string) {
     await payments.setDefault(id);
@@ -89,6 +101,55 @@ export default function PaymentMethods() {
             Demo billing. The payment layer is gateway-agnostic — Stripe drops in
             without touching the app.
           </Text>
+        </View>
+
+        {/* Ez Wallet */}
+        <View style={styles.wallet}>
+          <View style={styles.walletTop}>
+            <View>
+              <Text variant="label" color={colors.onInkMuted}>Ez Wallet</Text>
+              <Text style={styles.walletBalance} testID="wallet-balance">
+                {formatMoney(wallet.balance)}
+              </Text>
+            </View>
+            <View style={styles.walletChip}>
+              <Ionicons name="wallet" size={20} color={colors.ink} />
+            </View>
+          </View>
+          <Text variant="small" color={colors.onInkMuted}>
+            Credit applies automatically to your next rides.
+          </Text>
+
+          <View style={styles.promoRow}>
+            <View style={styles.promoInput}>
+              <Ionicons name="pricetag-outline" size={16} color={colors.onInkMuted} />
+              <TextInput
+                testID="promo-input"
+                placeholder="Promo code (try EZ10)"
+                placeholderTextColor={colors.onInkMuted}
+                autoCapitalize="characters"
+                value={promo}
+                onChangeText={(t) => {
+                  setPromo(t);
+                  setPromoMsg(null);
+                }}
+                style={styles.promoField}
+              />
+            </View>
+            <Pressable style={styles.promoBtn} testID="apply-promo" onPress={applyPromo}>
+              <Text variant="smallStrong" color={colors.ink}>Apply</Text>
+            </Pressable>
+          </View>
+          {promoMsg ? (
+            <Text
+              variant="small"
+              color={promoMsg.ok ? colors.jade : colors.amber}
+              testID="promo-msg"
+              style={{ marginTop: space.sm }}
+            >
+              {promoMsg.text}
+            </Text>
+          ) : null}
         </View>
 
         <Eyebrow>Your methods</Eyebrow>
@@ -173,6 +234,35 @@ const styles = StyleSheet.create({
     borderRadius: radius.md,
     padding: space.md,
     marginBottom: space.xl,
+  },
+  wallet: {
+    backgroundColor: colors.ink,
+    borderRadius: radius.lg,
+    padding: space.lg,
+    marginBottom: space.xl,
+  },
+  walletTop: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 2 },
+  walletBalance: { fontFamily: fonts.monoBold, fontSize: 30, color: colors.onInk, marginVertical: 2 },
+  walletChip: { width: 40, height: 40, borderRadius: 12, backgroundColor: colors.jade, alignItems: 'center', justifyContent: 'center' },
+  promoRow: { flexDirection: 'row', gap: space.sm, marginTop: space.lg },
+  promoInput: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    backgroundColor: colors.inkSoft,
+    borderRadius: radius.md,
+    paddingHorizontal: space.md,
+    height: 48,
+  },
+  promoField: { flex: 1, fontFamily: fonts.bodyMedium, fontSize: 14, color: colors.onInk, height: '100%' },
+  promoBtn: {
+    backgroundColor: colors.jade,
+    borderRadius: radius.md,
+    paddingHorizontal: space.lg,
+    height: 48,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   method: {
     flexDirection: 'row',

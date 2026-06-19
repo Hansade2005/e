@@ -21,11 +21,17 @@ export default function TripDetails() {
   const setPickup = useRide((s) => s.setPickup);
   const setDestination = useRide((s) => s.setDestination);
 
-  const ride = history.find((r) => r.id === id) ?? history[0];
+  // Strict lookup — an unknown id safely redirects rather than showing a
+  // different trip's details.
+  const ride = history.find((r) => r.id === id);
   const [route, setRoute] = useState<LatLng[]>([]);
 
   useEffect(() => {
-    if (ride) getRoute(ride.pickup, ride.destination).then((r) => setRoute(r.coords));
+    if (ride) {
+      getRoute(ride.pickup, ride.destination)
+        .then((r) => setRoute(r.coords))
+        .catch((err) => console.error('Failed to fetch route:', err));
+    }
   }, [ride?.id]);
 
   if (!ride) {
@@ -38,6 +44,7 @@ export default function TripDetails() {
   const total = subtotal + tip;
 
   async function rebook() {
+    if (!ride) return;
     setPickup(ride.pickup);
     await setDestination(ride.destination);
     router.push('/(rider)/select-ride');

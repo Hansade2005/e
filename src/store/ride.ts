@@ -6,12 +6,13 @@ import {
   type LatLng,
   type Place,
 } from '@/lib/geo';
-import { estimateFare, VEHICLE_CLASSES, type Fare, type VehicleClass } from '@/constants/vehicles';
+import { estimateFare, formatMoney, VEHICLE_CLASSES, type Fare, type VehicleClass } from '@/constants/vehicles';
 import { pickDriver, type DriverProfile } from '@/constants/drivers';
 import { payments } from '@/lib/payments';
 import { storage } from '@/lib/storage';
 import { fetchRidesRemote, saveRideRemote, updateRideRemote } from '@/lib/db';
 import { useAuth } from '@/store/auth';
+import { useNotifications } from '@/store/notifications';
 
 export type RideStatus =
   | 'idle' // nothing selected
@@ -40,6 +41,16 @@ export type RideRecord = {
 
 type Quote = { vehicle: VehicleClass; fare: Fare };
 
+export type ScheduledRide = {
+  id: string;
+  when: number; // epoch ms of requested pickup time
+  pickup: Place;
+  destination: Place;
+  vehicle: VehicleClass['id'];
+  vehicleName: string;
+  fare: number;
+};
+
 type RideState = {
   status: RideStatus;
   pickup: Place | null;
@@ -50,6 +61,7 @@ type RideState = {
   quotes: Quote[];
   selectedVehicleId: VehicleClass['id'];
   methodId: string;
+  scheduledAt: number | null; // null = ride now
   driver: DriverProfile | null;
   driverPos: LatLng | null;
   pickupRoute: LatLng[];
@@ -57,12 +69,16 @@ type RideState = {
   progress: number; // 0..1 along the active leg
   lastReceipt: { fare: number; vehicleName: string } | null;
   history: RideRecord[];
+  scheduled: ScheduledRide[];
 
   setPickup: (p: Place) => void;
   setDestination: (p: Place | null) => Promise<void>;
   selectVehicle: (id: VehicleClass['id']) => void;
   setMethod: (id: string) => void;
+  setScheduledAt: (t: number | null) => void;
   requestRide: () => Promise<void>;
+  scheduleRide: () => Promise<void>;
+  cancelScheduled: (id: string) => Promise<void>;
   cancelRide: () => void;
   reset: () => void;
   rateLastRide: (stars: number, tip?: number) => Promise<void>;
@@ -70,6 +86,7 @@ type RideState = {
 };
 
 const HISTORY_KEY = 'ez2go.history';
+const SCHEDULED_KEY = 'ez2go.scheduled';
 let timers: ReturnType<typeof setTimeout>[] = [];
 let ticker: ReturnType<typeof setInterval> | null = null;
 
@@ -106,6 +123,7 @@ export const useRide = create<RideState>((set, get) => ({
   quotes: quotesFor(0, 0),
   selectedVehicleId: 'ezgo',
   methodId: 'pm_visa',
+  scheduledAt: null,
   driver: null,
   driverPos: null,
   pickupRoute: [],
@@ -113,6 +131,7 @@ export const useRide = create<RideState>((set, get) => ({
   progress: 0,
   lastReceipt: null,
   history: [],
+  scheduled: [],
 
   setPickup(p) {
     set({ pickup: p });
@@ -140,6 +159,43 @@ export const useRide = create<RideState>((set, get) => ({
 
   setMethod(id) {
     set({ methodId: id });
+  },
+
+  setScheduledAt(t) {
+    set({ scheduledAt: t });
+  },
+
+  async scheduleRide() {
+    const s = get();
+    if (!s.pickup || !s.destination || !s.scheduledAt) return;
+    const q = s.quotes.find((x) => x.vehicle.id === s.selectedVehicleId) ?? s.quotes[0];
+    const entry: ScheduledRide = {
+      id: 'sch_' + Math.random().toString(36).slice(2, 10),
+      when: s.scheduledAt,
+      pickup: s.pickup,
+      destination: s.destination,
+      vehicle: q.vehicle.id,
+      vehicleName: q.vehicle.name,
+      fare: q.fare.total,
+    };
+    const scheduled = [entry, ...s.scheduled].sort((a, b) => a.when - b.when);
+    set({ scheduled });
+    await storage.setItem(SCHEDULED_KEY, JSON.stringify(scheduled));
+    await useNotifications.getState().push({
+      icon: 'calendar',
+      tone: 'jade',
+      kind: 'scheduled',
+      title: 'Ride scheduled',
+      body: `${q.vehicle.name} to ${s.destination.name} · ${new Date(s.scheduledAt).toLocaleString(undefined, { weekday: 'short', hour: 'numeric', minute: '2-digit' })}`,
+    });
+    get().reset();
+    set({ scheduledAt: null }); // back to "Now" for the next booking
+  },
+
+  async cancelScheduled(id) {
+    const scheduled = get().scheduled.filter((s) => s.id !== id);
+    set({ scheduled });
+    await storage.setItem(SCHEDULED_KEY, JSON.stringify(scheduled));
   },
 
   async requestRide() {
@@ -209,6 +265,8 @@ export const useRide = create<RideState>((set, get) => ({
       pickupRoute: [],
       progress: 0,
       lastReceipt: null,
+      // scheduledAt is a pickup-time preference — it survives reset() (which
+      // runs on every home focus) and is cleared explicitly once a ride is booked.
     });
   },
 
@@ -224,6 +282,17 @@ export const useRide = create<RideState>((set, get) => ({
   },
 
   async loadHistory() {
+    // Scheduled (upcoming) rides — local only, pruned of past entries.
+    const schedRaw = await storage.getItem(SCHEDULED_KEY);
+    if (schedRaw) {
+      try {
+        const all = JSON.parse(schedRaw) as ScheduledRide[];
+        const upcoming = all.filter((s) => s.when > Date.now() - 3600_000);
+        set({ scheduled: upcoming });
+      } catch {
+        /* ignore */
+      }
+    }
     // Local cache first for instant render…
     const raw = await storage.getItem(HISTORY_KEY);
     let local: RideRecord[] = [];
@@ -324,6 +393,14 @@ async function completeRide(get: () => RideState, set: (p: Partial<RideState>) =
     progress: 1,
     lastReceipt: { fare, vehicleName: vehicle.vehicle.name },
     history,
+  });
+
+  void useNotifications.getState().push({
+    icon: 'checkmark-circle',
+    tone: 'jade',
+    kind: 'ride',
+    title: 'Trip complete',
+    body: `${vehicle.vehicle.name} to ${record.destination.name} · ${formatMoney(fare)}`,
   });
 
   // Persist to Supabase (no-op for guest/offline) and remember the row id so a

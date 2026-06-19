@@ -27,6 +27,8 @@ export default function SelectRide() {
     methodId,
     setMethod,
     requestRide,
+    scheduledAt,
+    scheduleRide,
   } = useRide();
 
   const [methods, setMethods] = useState<PaymentMethod[]>([]);
@@ -56,6 +58,12 @@ export default function SelectRide() {
 
   async function book() {
     setBooking(true);
+    if (scheduledAt) {
+      await scheduleRide();
+      if (router.canDismiss()) router.dismissAll();
+      else router.replace('/(rider)/home');
+      return;
+    }
     await requestRide();
     router.push('/(rider)/tracking');
   }
@@ -145,8 +153,26 @@ export default function SelectRide() {
           </Text>
         </Pressable>
 
+        {scheduledAt ? (
+          <View style={styles.schedRow}>
+            <Ionicons name="time" size={15} color={colors.jade} />
+            <Text variant="smallStrong" color={colors.jadeDark}>
+              Scheduled for{' '}
+              {new Date(scheduledAt).toLocaleString(undefined, {
+                weekday: 'short',
+                hour: 'numeric',
+                minute: '2-digit',
+              })}
+            </Text>
+          </View>
+        ) : null}
+
         <Button
-          label={`Book ${selected.vehicle.name} · ${formatMoney(selected.fare.total)}`}
+          label={
+            scheduledAt
+              ? `Schedule ${selected.vehicle.name} · ${formatMoney(selected.fare.total)}`
+              : `Book ${selected.vehicle.name} · ${formatMoney(selected.fare.total)}`
+          }
           variant="primary"
           testID="book-ride"
           loading={booking}
@@ -225,5 +251,12 @@ const styles = StyleSheet.create({
     marginVertical: space.sm,
     borderTopWidth: 1,
     borderTopColor: colors.surfaceAlt,
+  },
+  schedRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    marginBottom: space.sm,
   },
 });

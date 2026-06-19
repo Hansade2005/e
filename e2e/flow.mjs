@@ -132,6 +132,14 @@ await page.screenshot({ path: `${SHOTS}/d2-offer.png` });
 await step('accept-and-drive', async () => {
   await tid('accept-ride').click();
   await tid('driver-advance').waitFor({ timeout: 10000 });
+  // Driver-side chat mirrors the rider chat.
+  await tid('driver-message').click();
+  await tid('chat-input').waitFor({ timeout: 10000 });
+  await tid('chat-input').fill('On my way');
+  await tid('chat-send').click();
+  await page.locator('[data-testid="msg-me"]').first().waitFor({ timeout: 8000 });
+  await tid('chat-back').click();
+  await tid('driver-advance').waitFor({ timeout: 10000 });
   await tid('driver-advance').click(); // to_pickup -> arrived
   await page.waitForTimeout(400);
   await tid('driver-advance').click(); // arrived -> in_progress

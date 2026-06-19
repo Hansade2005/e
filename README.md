@@ -28,8 +28,12 @@ entirely by **OpenStreetMap** — no API keys, no map billing.
 - **Receipt + tip + rating**, Empower-style "driver keeps 100%" comparison
 - **Ride history** persisted to Supabase (`rides`) so trips show across devices
 - **Trip details + one-tap rebook** from any past trip
-- **In-app driver chat** with quick replies, and a **Safety toolkit** (share
-  trip, emergency, trusted contacts)
+- **Schedule a ride** for later (the time pill on home)
+- **Ez Wallet + promo codes** — apply codes (e.g. EZ10), credit auto-applies at checkout
+- **AI ride assistant ("Ask Ez")** powered by the A0 LLM, with an offline fallback
+- **Activity feed** with unread badge (ride, scheduled, and promo notifications)
+- **In-app chat** (both rider↔driver), plus a **Safety toolkit** (share trip,
+  emergency dialer, trusted contacts)
 - **Saved places** — Home / Work / favorites stored in Supabase (`saved_places`)
 - **Profile**, **payment methods**
 
@@ -42,6 +46,8 @@ entirely by **OpenStreetMap** — no API keys, no map billing.
 ### Platform
 - **OpenStreetMap** maps via Leaflet on web (`react-leaflet`); native fallback
   is dependency-free and documents how to drop in `react-native-maps` + OSM tiles
+- **AI** via the A0 LLM (`src/lib/ai.ts`) — the "Ask Ez" assistant; degrades to
+  a helpful offline reply when the API is unreachable.
 - **Pluggable payments** — the whole app talks to a `PaymentProvider` interface.
   Today it's `MockPaymentProvider`; swapping in **Stripe** is a one-line change
   in `src/lib/payments/index.ts` (see that file's notes)

@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { View, StyleSheet, ScrollView, Pressable } from 'react-native';
+import { View, StyleSheet, ScrollView, Pressable, Linking } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
@@ -42,6 +42,7 @@ export default function Safety() {
         <Pressable
           style={[styles.action, { backgroundColor: colors.danger }]}
           testID="safety-emergency"
+          onPress={() => Linking.openURL('tel:911').catch(() => {})}
         >
           <View style={styles.actionIcon}>
             <Ionicons name="alert" size={22} color={colors.white} />

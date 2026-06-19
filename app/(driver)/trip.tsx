@@ -94,7 +94,11 @@ export default function DriverTrip() {
             <Pressable style={styles.iconBtn} testID="driver-call">
               <Ionicons name="call" size={18} color={colors.onInk} />
             </Pressable>
-            <Pressable style={styles.iconBtn} testID="driver-message">
+            <Pressable
+              style={styles.iconBtn}
+              testID="driver-message"
+              onPress={() => router.push('/(driver)/chat')}
+            >
               <Ionicons name="chatbubble-ellipses" size={18} color={colors.onInk} />
             </Pressable>
           </View>

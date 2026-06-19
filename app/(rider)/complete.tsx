@@ -9,6 +9,7 @@ import { Avatar } from '@/components/ui/Avatar';
 import { Stars } from '@/components/ui/Stars';
 import { Eyebrow } from '@/components/ui/Eyebrow';
 import { useRide } from '@/store/ride';
+import { useWallet } from '@/store/wallet';
 import { formatMoney } from '@/constants/vehicles';
 import { kmToMiles } from '@/lib/geo';
 import { colors, radius, space, fonts } from '@/theme/tokens';
@@ -24,15 +25,21 @@ export default function Complete() {
   const destination = useRide((s) => s.destination);
   const rateLastRide = useRide((s) => s.rateLastRide);
   const reset = useRide((s) => s.reset);
+  const walletBalance = useWallet((s) => s.balance);
+  const spendWallet = useWallet((s) => s.spend);
 
   const [stars, setStars] = useState(5);
   const [tip, setTip] = useState(3);
 
   const fare = lastReceipt?.fare ?? 0;
   const rival = fare * 1.4; // Uber/Lyft take ~40% — Empower-style comparison
-  const total = fare + tip;
+  const grossTotal = fare + tip;
+  // Ez Wallet credit covers the fare (not the tip — tips go 100% to the driver).
+  const walletApplied = Math.min(walletBalance, fare);
+  const total = Math.max(0, grossTotal - walletApplied);
 
   async function done() {
+    if (walletApplied > 0) await spendWallet(walletApplied, `Ride to ${destination?.name ?? 'destination'}`);
     await rateLastRide(stars, tip);
     // Pop the search → select-ride → complete chain back to the base home.
     if (router.canDismiss()) router.dismissAll();
@@ -81,10 +88,14 @@ export default function Complete() {
         <View style={styles.receipt}>
           <Row label={`${lastReceipt?.vehicleName ?? 'Ride'} fare`} value={formatMoney(fare)} />
           <Row label="Tip" value={formatMoney(tip)} />
+          {walletApplied > 0 ? (
+            <Row label="Ez Wallet credit" value={`-${formatMoney(walletApplied)}`} credit />
+          ) : null}
           <View style={styles.receiptDivider} />
           <Row label="Total paid" value={formatMoney(total)} bold />
           <Text variant="small" color={colors.textMuted} style={{ marginTop: space.sm }}>
-            {kmToMiles(distanceKm).toFixed(1)} mi · {Math.round(durationMin)} min · Visa •••• 4242
+            {kmToMiles(distanceKm).toFixed(1)} mi · {Math.round(durationMin)} min ·{' '}
+            {walletApplied > 0 ? 'Ez Wallet + Visa •••• 4242' : 'Visa •••• 4242'}
           </Text>
         </View>
 
@@ -129,13 +140,13 @@ export default function Complete() {
   );
 }
 
-function Row({ label, value, bold }: { label: string; value: string; bold?: boolean }) {
+function Row({ label, value, bold, credit }: { label: string; value: string; bold?: boolean; credit?: boolean }) {
   return (
     <View style={styles.row}>
-      <Text variant={bold ? 'bodyStrong' : 'body'} color={bold ? colors.ink : colors.textSecondary}>
+      <Text variant={bold ? 'bodyStrong' : 'body'} color={bold ? colors.ink : credit ? colors.jadeDark : colors.textSecondary}>
         {label}
       </Text>
-      <Text style={[styles.rowValue, bold && { color: colors.ink, fontSize: 18 }]}>{value}</Text>
+      <Text style={[styles.rowValue, bold && { color: colors.ink, fontSize: 18 }, credit && { color: colors.jadeDark }]}>{value}</Text>
     </View>
   );
 }

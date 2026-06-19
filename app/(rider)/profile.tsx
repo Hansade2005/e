@@ -78,6 +78,7 @@ export default function Profile() {
           <MenuItem icon="receipt-outline" label="Ride history" onPress={() => router.push('/(rider)/history')} testID="menu-history" />
           <MenuItem icon="card-outline" label="Payment methods" onPress={() => router.push('/(rider)/payment-methods')} testID="menu-payments" />
           <MenuItem icon="bookmark-outline" label="Saved places" onPress={() => router.push('/(rider)/saved-places')} testID="menu-places" />
+          <MenuItem icon="sparkles-outline" label="Ask Ez (AI assistant)" onPress={() => router.push('/(rider)/assistant')} testID="menu-assistant" />
           <MenuItem icon="shield-checkmark-outline" label="Safety toolkit" onPress={() => router.push('/(rider)/safety')} testID="menu-safety" />
           <MenuItem icon="help-circle-outline" label="Help & support" />
         </View>
