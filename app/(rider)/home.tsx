@@ -25,6 +25,7 @@ export default function Home() {
   const pickup = useRide((s) => s.pickup);
   const reset = useRide((s) => s.reset);
   const setDestination = useRide((s) => s.setDestination);
+  const setPickupToCurrent = useRide((s) => s.setPickupToCurrent);
   const loadHistory = useRide((s) => s.loadHistory);
   const scheduledAt = useRide((s) => s.scheduledAt);
   const loadPlaces = usePlaces((s) => s.load);
@@ -40,7 +41,9 @@ export default function Home() {
     loadHistory();
     loadPlaces();
     loadNotifs();
-  }, [loadHistory, loadPlaces, loadNotifs]);
+    // Try to set the pickup to the device's real location (silent if denied).
+    setPickupToCurrent();
+  }, [loadHistory, loadPlaces, loadNotifs, setPickupToCurrent]);
 
   const scheduleLabel = scheduledAt
     ? new Date(scheduledAt).toLocaleString(undefined, { hour: 'numeric', minute: '2-digit' })
@@ -118,12 +121,18 @@ export default function Home() {
           <Ionicons name="sparkles" size={16} color={colors.white} />
           <Text variant="smallStrong" color={colors.white}>Ask Ez</Text>
         </Pressable>
-        <IconButton name="locate" color={colors.jade} />
+        <IconButton name="locate" color={colors.jade} testID="use-location" onPress={() => setPickupToCurrent()} />
       </View>
 
       {/* Bottom panel */}
       <View style={[styles.sheet, { paddingBottom: insets.bottom + space.lg }]}>
         <View style={styles.grabber} />
+        <View style={styles.fromRow}>
+          <View style={styles.fromDot} />
+          <Text variant="small" color={colors.textSecondary} numberOfLines={1} testID="pickup-label" style={{ flex: 1 }}>
+            From {pickup?.name ?? 'Current location'}
+          </Text>
+        </View>
         <Eyebrow>Where to?</Eyebrow>
 
         <View style={styles.searchBar}>
@@ -265,8 +274,10 @@ const styles = StyleSheet.create({
     height: 5,
     borderRadius: 3,
     backgroundColor: colors.surfaceAlt,
-    marginBottom: space.lg,
+    marginBottom: space.md,
   },
+  fromRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: space.md },
+  fromDot: { width: 9, height: 9, borderRadius: 5, backgroundColor: colors.jade },
   searchBar: {
     flexDirection: 'row',
     alignItems: 'center',

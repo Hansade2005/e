@@ -7,6 +7,8 @@
  * stays fully usable offline and is deterministic under E2E tests.
  */
 
+import * as Location from 'expo-location';
+
 export type LatLng = { lat: number; lng: number };
 
 export type Place = {
@@ -75,6 +77,33 @@ export async function searchPlaces(query: string): Promise<Place[]> {
 
 function shortName(displayName: string): string {
   return displayName.split(',').slice(0, 2).join(',').trim();
+}
+
+/** The device's current position, or null if unavailable / denied. */
+export async function getCurrentLocation(): Promise<LatLng | null> {
+  try {
+    const { status } = await Location.requestForegroundPermissionsAsync();
+    if (status !== 'granted') return null;
+    const pos = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced });
+    return { lat: pos.coords.latitude, lng: pos.coords.longitude };
+  } catch {
+    return null;
+  }
+}
+
+/** Reverse-geocode a point to a short readable address via Nominatim. */
+export async function reverseGeocode(lat: number, lng: number): Promise<string | null> {
+  try {
+    const url = `https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${lat}&lon=${lng}`;
+    const res = await fetchWithTimeout(url, {
+      headers: { 'Accept-Language': 'en', 'User-Agent': 'Ez2go/1.0 (demo app)' },
+    });
+    if (!res.ok) throw new Error('reverse');
+    const d = await res.json();
+    return d?.display_name ? shortName(d.display_name) : null;
+  } catch {
+    return null;
+  }
 }
 
 /** Road route geometry between two points via OSRM, with a straight-line fallback. */

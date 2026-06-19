@@ -1,9 +1,11 @@
 import { create } from 'zustand';
 import {
   DEFAULT_CENTER,
+  getCurrentLocation,
   getRoute,
   haversineKm,
   pointAlong,
+  reverseGeocode,
   type LatLng,
   type Place,
 } from '@/lib/geo';
@@ -76,6 +78,7 @@ type RideState = {
   liveRideId: string | null; // Supabase rides.id for live matching, when authed
 
   setPickup: (p: Place) => void;
+  setPickupToCurrent: () => Promise<boolean>;
   setDestination: (p: Place | null) => Promise<void>;
   selectVehicle: (id: VehicleClass['id']) => void;
   setMethod: (id: string) => void;
@@ -155,6 +158,21 @@ export const useRide = create<RideState>((set, get) => ({
 
   setPickup(p) {
     set({ pickup: p });
+  },
+
+  async setPickupToCurrent() {
+    const loc = await getCurrentLocation();
+    if (!loc) return false;
+    const name =
+      (await reverseGeocode(loc.lat, loc.lng)) ??
+      `Near ${loc.lat.toFixed(3)}, ${loc.lng.toFixed(3)}`;
+    set({
+      pickup: { id: 'current', name, address: name, lat: loc.lat, lng: loc.lng, kind: 'recent' },
+    });
+    // Recompute the route/quotes if a destination is already chosen.
+    const dest = get().destination;
+    if (dest) await get().setDestination(dest);
+    return true;
   },
 
   async setDestination(p) {

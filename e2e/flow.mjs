@@ -146,6 +146,7 @@ await step('accept-and-drive', async () => {
   await page.waitForTimeout(400);
   await tid('driver-advance').click(); // in_progress -> completed
   await tid('driver-done').waitFor({ timeout: 10000 });
+  await page.locator('[data-testid="star-4"]').click(); // rate the rider
 });
 await page.screenshot({ path: `${SHOTS}/d3-trip-complete.png` });
 

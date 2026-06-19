@@ -8,6 +8,7 @@ import {
   claimRide,
   fetchRiderName,
   pollOpenRequests,
+  rateRiderRow,
   setRideStatus,
   type RideRow,
 } from '@/lib/rides';
@@ -50,6 +51,7 @@ type DriverState = {
   accept: () => Promise<boolean>;
   decline: () => void;
   advance: () => void;
+  rateRider: (stars: number) => Promise<void>;
   finish: () => Promise<void>;
   load: () => Promise<void>;
 };
@@ -210,6 +212,11 @@ export const useDriver = create<DriverState>((set, get) => ({
     } else if (phase === 'in_progress') {
       set({ phase: 'completed' });
     }
+  },
+
+  async rateRider(stars) {
+    const liveId = get().request?.liveId;
+    if (liveId) await rateRiderRow(liveId, stars);
   },
 
   async finish() {

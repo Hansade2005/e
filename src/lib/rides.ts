@@ -227,6 +227,16 @@ export async function claimRide(
   }
 }
 
+/** The driver's rating of the rider (driver_rating column). */
+export async function rateRiderRow(rideId: string, stars: number): Promise<void> {
+  if (!isRemoteId(rideId)) return;
+  try {
+    await supabase.from('rides').update({ driver_rating: stars }).eq('id', rideId);
+  } catch {
+    /* ignore */
+  }
+}
+
 export async function setRideStatus(rideId: string, status: string): Promise<void> {
   if (!isRemoteId(rideId)) return;
   try {
