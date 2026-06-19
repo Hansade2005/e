@@ -67,6 +67,19 @@ await step('apply-promo', async () => {
 });
 await page.screenshot({ path: `${SHOTS}/f2-wallet.png` });
 
+// ---- Rider community ownership (invest) ----
+await step('rider-invest', async () => {
+  await tid('open-profile').click();
+  await tid('menu-invest').click({ timeout: 10000 });
+  await tid('invest-amount-100').click({ timeout: 10000 });
+  await tid('invest-confirm').click();
+  await tid('invest-done').waitFor({ timeout: 12000 }); // success: now an owner
+  await tid('invest-done').click();
+  await tid('profile-back').click();
+  await tid('search-bar').waitFor({ timeout: 10000 });
+});
+await page.screenshot({ path: `${SHOTS}/f4-invest.png` });
+
 // ---- Schedule a ride for later ----
 await step('schedule-time', async () => {
   await tid('schedule-pill').click();

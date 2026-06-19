@@ -18,6 +18,7 @@ export default function RiderLayout() {
       <Stack.Screen name="schedule" options={{ animation: 'slide_from_bottom' }} />
       <Stack.Screen name="activity" options={{ animation: 'slide_from_bottom' }} />
       <Stack.Screen name="assistant" options={{ animation: 'slide_from_bottom' }} />
+      <Stack.Screen name="invest" options={{ animation: 'slide_from_bottom' }} />
     </Stack>
   );
 }

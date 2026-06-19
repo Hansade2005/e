@@ -51,6 +51,8 @@ entirely by **OpenStreetMap** — no API keys, no map billing.
 - **In-app chat** (both rider↔driver), plus a **Safety toolkit** (share trip,
   emergency dialer, trusted contacts)
 - **Saved places** — Home / Work / favorites stored in Supabase (`saved_places`)
+- **Own Ez2go** — riders can buy into the platform too (community ownership):
+  shares at $5, paid by card or Ez Wallet, with a running stake
 - **Profile**, **payment methods**
 
 ### Driver
