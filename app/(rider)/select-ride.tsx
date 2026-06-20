@@ -67,10 +67,13 @@ export default function SelectRide() {
     }
   }, [methods]);
 
-  if (!destination) {
-    router.replace('/(rider)/home');
-    return null;
-  }
+  // If there's no destination (e.g. the store was reset after booking a
+  // scheduled ride), bounce home — from an effect, never during render.
+  useEffect(() => {
+    if (!destination) router.replace('/(rider)/home');
+  }, [destination]);
+
+  if (!destination) return null;
 
   const selected = quotes.find((q) => q.vehicle.id === selectedVehicleId) ?? quotes[0];
   const method = methods.find((m) => m.id === methodId) ?? methods[0];

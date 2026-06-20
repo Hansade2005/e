@@ -145,6 +145,10 @@ async function recomputeRoute(get: () => RideState, set: (p: Partial<RideState>)
   const { pickup, destination, stops } = get();
   if (!pickup || !destination) return;
   const r = await getRouteVia([pickup, ...stops, destination]);
+  // The request is async; if the rider changed the route (added/removed a stop,
+  // picked a new destination) while it was in flight, drop this stale result.
+  const cur = get();
+  if (cur.pickup !== pickup || cur.destination !== destination || cur.stops !== stops) return;
   set({
     route: r.coords,
     distanceKm: r.distanceKm,

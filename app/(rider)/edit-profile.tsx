@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { View, StyleSheet, ScrollView, Pressable, KeyboardAvoidingView, Platform } from 'react-native';
+import { View, StyleSheet, ScrollView, Pressable, KeyboardAvoidingView, Platform, Alert } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
@@ -27,6 +27,8 @@ export default function EditProfile() {
     try {
       await updateProfile({ name: name.trim(), phone: phone.trim() || undefined });
       router.back();
+    } catch {
+      Alert.alert('Could not save', 'We couldn’t update your profile. Please try again.');
     } finally {
       setSaving(false);
     }
