@@ -33,6 +33,7 @@ export const useSettings = create<SettingsState>((set, get) => ({
   loaded: false,
 
   async load() {
+    if (get().loaded) return;
     const raw = await storage.getItem(KEY);
     if (raw) {
       try {

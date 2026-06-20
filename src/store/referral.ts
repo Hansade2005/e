@@ -9,6 +9,7 @@ export const INVITE_CREDIT = 10; // USD to each side
 const KEY = 'ez2go.referral';
 
 type ReferralState = {
+  userId: string | null;
   code: string;
   appliedCode: string | null;
   earned: number;
@@ -23,11 +24,19 @@ function deriveCode(seed: string): string {
   return 'EZ' + (base.slice(0, 6) || 'RIDE01');
 }
 
-async function persist(s: { code: string; appliedCode: string | null; earned: number; invited: number }) {
-  await storage.setItem(KEY, JSON.stringify(s));
+function currentUserId(): string {
+  return useAuth.getState().user?.id ?? 'guest';
+}
+
+async function persist(
+  userId: string,
+  s: { code: string; appliedCode: string | null; earned: number; invited: number },
+) {
+  await storage.setItem(`${KEY}.${userId}`, JSON.stringify(s));
 }
 
 export const useReferral = create<ReferralState>((set, get) => ({
+  userId: null,
   code: '',
   appliedCode: null,
   earned: 0,
@@ -35,19 +44,22 @@ export const useReferral = create<ReferralState>((set, get) => ({
   loaded: false,
 
   async load() {
-    const raw = await storage.getItem(KEY);
+    const userId = currentUserId();
+    if (get().loaded && get().userId === userId) return;
+
+    const raw = await storage.getItem(`${KEY}.${userId}`);
     if (raw) {
       try {
         const s = JSON.parse(raw);
-        set({ code: s.code, appliedCode: s.appliedCode ?? null, earned: s.earned ?? 0, invited: s.invited ?? 0, loaded: true });
+        set({ userId, code: s.code, appliedCode: s.appliedCode ?? null, earned: s.earned ?? 0, invited: s.invited ?? 0, loaded: true });
         if (s.code) return;
       } catch {
         /* ignore */
       }
     }
     const code = deriveCode(useAuth.getState().user?.id ?? '');
-    set({ code, loaded: true });
-    await persist({ code, appliedCode: get().appliedCode, earned: get().earned, invited: get().invited });
+    set({ userId, code, loaded: true });
+    await persist(userId, { code, appliedCode: get().appliedCode, earned: get().earned, invited: get().invited });
   },
 
   async applyCode(input) {
@@ -57,10 +69,12 @@ export const useReferral = create<ReferralState>((set, get) => ({
     if (get().appliedCode) return { ok: false, message: 'You already redeemed a code' };
     if (!/^EZ[A-Z0-9]{4,}$/.test(code)) return { ok: false, message: "That code isn't valid" };
 
+    // The credit lands in the wallet; "earned" tracks referral payouts (when a
+    // friend uses YOUR code), so we don't inflate it on redemption.
     await useWallet.getState().topUp(INVITE_CREDIT);
-    const next = { code: get().code, appliedCode: code, earned: get().earned + INVITE_CREDIT, invited: get().invited };
+    const next = { code: get().code, appliedCode: code, earned: get().earned, invited: get().invited };
     set(next);
-    await persist(next);
+    await persist(currentUserId(), next);
     void useNotifications.getState().push({
       icon: 'gift',
       tone: 'amber',

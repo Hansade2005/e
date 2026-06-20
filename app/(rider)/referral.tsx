@@ -21,6 +21,7 @@ export default function Referral() {
   }, [load]);
 
   async function share() {
+    if (!code) return; // wait until the code has loaded
     const message = `Join me on Ez2go — fair-priced rides where drivers keep 100%. Use my code ${code} and we both get ${formatMoney(INVITE_CREDIT)}. https://ez2go.app`;
     try {
       if (Platform.OS === 'web') {
@@ -204,7 +205,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
-    backgroundColor: '#0F2A2A',
+    backgroundColor: colors.jadeInk,
     borderRadius: radius.md,
     padding: space.lg,
     marginTop: space.sm,

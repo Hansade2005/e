@@ -44,7 +44,6 @@ export default function SelectRide() {
   const favorites = useFavorites((s) => s.favorites);
   const loadFavorites = useFavorites((s) => s.load);
   const units = useSettings((s) => s.units);
-  const quietByDefault = useSettings((s) => s.quietByDefault);
   const loadSettings = useSettings((s) => s.load);
   const [methods, setMethods] = useState<PaymentMethod[]>([]);
   const [booking, setBooking] = useState(false);
@@ -53,12 +52,6 @@ export default function SelectRide() {
     loadFavorites();
     loadSettings();
   }, [loadFavorites, loadSettings]);
-
-  // Apply the "quiet rides by default" setting once per booking.
-  useEffect(() => {
-    if (quietByDefault && !ridePrefs.includes('quiet')) toggleRidePref('quiet');
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [quietByDefault]);
 
   useEffect(() => {
     payments.listMethods().then(setMethods);
