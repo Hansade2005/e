@@ -1,3 +1,6 @@
+export type Gender = 'female' | 'male' | 'other';
+export type GenderPref = 'any' | 'female' | 'male';
+
 export type DriverProfile = {
   id: string;
   name: string;
@@ -7,6 +10,7 @@ export type DriverProfile = {
   color: string;
   plate: string;
   avatarColor: string;
+  gender: Gender;
 };
 
 export const DRIVER_POOL: DriverProfile[] = [
@@ -19,6 +23,7 @@ export const DRIVER_POOL: DriverProfile[] = [
     color: 'Silver',
     plate: 'EZ-4821',
     avatarColor: '#00C2A8',
+    gender: 'male',
   },
   {
     id: 'd2',
@@ -29,6 +34,7 @@ export const DRIVER_POOL: DriverProfile[] = [
     color: 'Graphite',
     plate: 'EZ-7733',
     avatarColor: '#FF8A3D',
+    gender: 'female',
   },
   {
     id: 'd3',
@@ -39,9 +45,31 @@ export const DRIVER_POOL: DriverProfile[] = [
     color: 'Black',
     plate: 'EZ-1190',
     avatarColor: '#7A5BD6',
+    gender: 'male',
+  },
+  {
+    id: 'd4',
+    name: 'Sofia Nguyen',
+    rating: 4.98,
+    trips: 6740,
+    car: 'Kia Niro',
+    color: 'Pearl',
+    plate: 'EZ-5508',
+    avatarColor: '#1FB57A',
+    gender: 'female',
   },
 ];
 
-export function pickDriver(): DriverProfile {
-  return DRIVER_POOL[Math.floor(Math.random() * DRIVER_POOL.length)];
+/** Pick a driver, honoring the rider's gender preference when possible. */
+export function pickDriver(pref: GenderPref = 'any'): DriverProfile {
+  const pool =
+    pref === 'any' ? DRIVER_POOL : DRIVER_POOL.filter((d) => d.gender === pref);
+  const list = pool.length ? pool : DRIVER_POOL;
+  return list[Math.floor(Math.random() * list.length)];
 }
+
+export const GENDER_PREFS: { id: GenderPref; label: string; icon: string }[] = [
+  { id: 'any', label: 'Any driver', icon: 'people' },
+  { id: 'female', label: 'Women', icon: 'female' },
+  { id: 'male', label: 'Men', icon: 'male' },
+];

@@ -32,12 +32,13 @@ export default function DriverOnboarding() {
     license: '',
     insurance: '',
     payout: 'debit',
+    gender: '',
   });
   const set = (k: keyof DriverSetup) => (v: string) => setF((s) => ({ ...s, [k]: v }));
 
   const valid =
     step === 0
-      ? f.make.trim() && f.model.trim() && f.plate.trim()
+      ? f.make.trim() && f.model.trim() && f.plate.trim() && f.gender
       : step === 1
         ? f.license.trim().length >= 4 && f.insurance.trim()
         : !!f.payout;
@@ -97,6 +98,28 @@ export default function DriverOnboarding() {
                 </View>
               </View>
               <Input label="License plate" placeholder="EZ-4821" testID="drv-plate" value={f.plate} onChangeText={set('plate')} autoCapitalize="characters" />
+              <Text variant="smallStrong" color={colors.onInkMuted} style={{ marginTop: space.xs }}>
+                Gender (used for riders who request a preference)
+              </Text>
+              <View style={styles.genderRow}>
+                {[
+                  { id: 'female', label: 'Woman' },
+                  { id: 'male', label: 'Man' },
+                  { id: 'other', label: 'Other' },
+                ].map((g) => {
+                  const active = f.gender === g.id;
+                  return (
+                    <Pressable
+                      key={g.id}
+                      testID={`drv-gender-${g.id}`}
+                      onPress={() => set('gender')(g.id)}
+                      style={[styles.gender, active && styles.genderActive]}
+                    >
+                      <Text variant="bodyStrong" color={active ? colors.ink : colors.onInk}>{g.label}</Text>
+                    </Pressable>
+                  );
+                })}
+              </View>
             </View>
           </>
         ) : step === 1 ? (
@@ -181,6 +204,18 @@ const styles = StyleSheet.create({
   h: { marginTop: 4, marginBottom: space.lg },
   form: { gap: space.md },
   row: { flexDirection: 'row', gap: space.md },
+  genderRow: { flexDirection: 'row', gap: space.sm },
+  gender: {
+    flex: 1,
+    height: 48,
+    borderRadius: radius.md,
+    backgroundColor: colors.inkSoft,
+    borderWidth: 1.5,
+    borderColor: colors.inkLine,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  genderActive: { backgroundColor: colors.jade, borderColor: colors.jade },
   upload: {
     flexDirection: 'row',
     alignItems: 'center',

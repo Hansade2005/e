@@ -121,7 +121,8 @@ try {
   await tap('become-driver', 1800); // signed-up rider -> driver setup
   await fill('drv-make', 'Toyota', 400);
   await fill('drv-model', 'Prius', 400);
-  await fill('drv-plate', 'EZ-4821', 600);
+  await fill('drv-plate', 'EZ-4821', 400);
+  await tap('drv-gender-male', 600);
   await tap('drv-onb-next', 1200);
   await fill('drv-license', 'D-1234567', 400);
   await fill('drv-insurance', 'State Farm', 600);

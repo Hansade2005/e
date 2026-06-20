@@ -45,6 +45,7 @@ type DriverState = {
   onlineMinutes: number;
   lastFare: number;
   history: number[];
+  tripsSinceSelfie: number; // safety: a selfie is required every 4 rides
   goOnline: () => void;
   goOffline: () => void;
   receiveOffer: () => Promise<void>;
@@ -54,8 +55,11 @@ type DriverState = {
   rateRider: (stars: number) => Promise<void>;
   finish: () => Promise<void>;
   cashOut: () => Promise<number>;
+  clearSelfie: () => Promise<void>;
   load: () => Promise<void>;
 };
+
+export const SELFIE_EVERY = 4;
 
 const KEY = 'ez2go.driver.stats';
 let offerTimer: ReturnType<typeof setTimeout> | null = null;
@@ -136,6 +140,7 @@ export const useDriver = create<DriverState>((set, get) => ({
   onlineMinutes: 0,
   lastFare: 0,
   history: [],
+  tripsSinceSelfie: 0,
 
   goOnline() {
     set({ online: true, phase: 'online' });
@@ -145,6 +150,7 @@ export const useDriver = create<DriverState>((set, get) => ({
     if (openPollStop) openPollStop();
     const driverId = useAuth.getState().user?.id;
     if (isRemoteId(driverId)) {
+      const myGender = useOnboarding.getState().driver?.gender;
       openPollStop = pollOpenRequests(async (rows) => {
         if (!get().online || get().phase !== 'online') return;
         const row = rows.find((r) => r.riderId !== driverId);
@@ -154,7 +160,7 @@ export const useDriver = create<DriverState>((set, get) => ({
           if (offerTimer) clearTimeout(offerTimer); // cancel the sim offer
           set({ request: req, phase: 'offered' });
         }
-      });
+      }, myGender);
     }
   },
 
@@ -226,16 +232,18 @@ export const useDriver = create<DriverState>((set, get) => ({
     const fare = req?.fare ?? 0;
     const earningsToday = get().earningsToday + fare;
     const tripsToday = get().tripsToday + 1;
+    const tripsSinceSelfie = get().tripsSinceSelfie + 1;
     const history = [fare, ...get().history].slice(0, 30);
     set({
       earningsToday,
       tripsToday,
+      tripsSinceSelfie,
       lastFare: fare,
       history,
       request: null,
       phase: get().online ? 'online' : 'offline',
     });
-    await storage.setItem(KEY, JSON.stringify({ earningsToday, tripsToday, history }));
+    await saveStats(get());
     if (get().online) get().receiveOffer();
   },
 
@@ -243,11 +251,14 @@ export const useDriver = create<DriverState>((set, get) => ({
   async cashOut() {
     const amount = get().earningsToday;
     set({ earningsToday: 0 });
-    await storage.setItem(
-      KEY,
-      JSON.stringify({ earningsToday: 0, tripsToday: get().tripsToday, history: get().history }),
-    );
+    await saveStats(get());
     return amount;
+  },
+
+  /** Mark the periodic safety selfie as completed. */
+  async clearSelfie() {
+    set({ tripsSinceSelfie: 0 });
+    await saveStats(get());
   },
 
   async load() {
@@ -255,12 +266,29 @@ export const useDriver = create<DriverState>((set, get) => ({
     if (raw) {
       try {
         const s = JSON.parse(raw);
-        set({ earningsToday: s.earningsToday ?? 0, tripsToday: s.tripsToday ?? 0, history: s.history ?? [] });
+        set({
+          earningsToday: s.earningsToday ?? 0,
+          tripsToday: s.tripsToday ?? 0,
+          history: s.history ?? [],
+          tripsSinceSelfie: s.tripsSinceSelfie ?? 0,
+        });
       } catch {
         /* ignore */
       }
     }
   },
 }));
+
+async function saveStats(s: DriverState) {
+  await storage.setItem(
+    KEY,
+    JSON.stringify({
+      earningsToday: s.earningsToday,
+      tripsToday: s.tripsToday,
+      history: s.history,
+      tripsSinceSelfie: s.tripsSinceSelfie,
+    }),
+  );
+}
 
 export const DRIVER_HOME: LatLng = DEFAULT_CENTER;

@@ -10,7 +10,7 @@ import {
   type Place,
 } from '@/lib/geo';
 import { estimateFare, formatMoney, VEHICLE_CLASSES, type Fare, type VehicleClass } from '@/constants/vehicles';
-import { pickDriver, type DriverProfile } from '@/constants/drivers';
+import { pickDriver, type DriverProfile, type GenderPref } from '@/constants/drivers';
 import { payments } from '@/lib/payments';
 import { storage } from '@/lib/storage';
 import { fetchRidesRemote, saveRideRemote, updateRideRemote, isRemoteId } from '@/lib/db';
@@ -65,6 +65,7 @@ type RideState = {
   durationMin: number;
   quotes: Quote[];
   selectedVehicleId: VehicleClass['id'];
+  driverGenderPref: GenderPref;
   methodId: string;
   scheduledAt: number | null; // null = ride now
   driver: DriverProfile | null;
@@ -81,6 +82,7 @@ type RideState = {
   setPickupToCurrent: () => Promise<boolean>;
   setDestination: (p: Place | null) => Promise<void>;
   selectVehicle: (id: VehicleClass['id']) => void;
+  setDriverGenderPref: (g: GenderPref) => void;
   setMethod: (id: string) => void;
   setScheduledAt: (t: number | null) => void;
   requestRide: () => Promise<void>;
@@ -144,6 +146,7 @@ export const useRide = create<RideState>((set, get) => ({
   durationMin: 0,
   quotes: quotesFor(0, 0),
   selectedVehicleId: 'ezgo',
+  driverGenderPref: 'any',
   methodId: 'pm_visa',
   scheduledAt: null,
   driver: null,
@@ -193,6 +196,10 @@ export const useRide = create<RideState>((set, get) => ({
 
   selectVehicle(id) {
     set({ selectedVehicleId: id });
+  },
+
+  setDriverGenderPref(g) {
+    set({ driverGenderPref: g });
   },
 
   setMethod(id) {
@@ -257,6 +264,7 @@ export const useRide = create<RideState>((set, get) => ({
         fare: q?.fare.total ?? 0,
         distanceKm: get().distanceKm,
         durationMin: get().durationMin,
+        driverGenderPref: get().driverGenderPref,
       });
       if (liveId) {
         set({ liveRideId: liveId });
@@ -292,6 +300,7 @@ export const useRide = create<RideState>((set, get) => ({
                 color: '',
                 plate: row.driverPlate ?? '',
                 avatarColor: '#00C2A8',
+                gender: 'other',
               },
             });
           }
@@ -314,7 +323,7 @@ export const useRide = create<RideState>((set, get) => ({
     // 1) match a driver (local simulation / fallback)
     timers.push(
       setTimeout(async () => {
-        const driver = pickDriver();
+        const driver = pickDriver(get().driverGenderPref);
         const start: LatLng = {
           lat: pickup.lat + 0.012,
           lng: pickup.lng - 0.014,

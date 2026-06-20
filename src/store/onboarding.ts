@@ -12,6 +12,7 @@ export type DriverSetup = {
   license: string;
   insurance: string;
   payout: string;
+  gender: string; // 'female' | 'male' | 'other'
 };
 
 const KEY = 'ez2go.onboarding';

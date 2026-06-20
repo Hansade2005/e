@@ -24,6 +24,7 @@ export type RideRow = {
   fare: number;
   distanceKm: number;
   durationMin: number;
+  driverGenderPref: string;
 };
 
 function rowTo(r: any): RideRow {
@@ -38,6 +39,7 @@ function rowTo(r: any): RideRow {
     pickup: { id: 'p', name: r.pickup_name ?? 'Pickup', address: '', lat: r.pickup_lat, lng: r.pickup_lng },
     destination: { id: 'd', name: r.dest_name ?? 'Destination', address: '', lat: r.dest_lat, lng: r.dest_lng },
     vehicleClass: r.vehicle_class,
+    driverGenderPref: r.driver_gender_pref ?? 'any',
     fare: Number(r.fare ?? 0),
     distanceKm: Number(r.distance_km ?? 0),
     durationMin: Number(r.duration_min ?? 0),
@@ -54,6 +56,7 @@ export async function createRideRequest(input: {
   fare: number;
   distanceKm: number;
   durationMin: number;
+  driverGenderPref?: string;
   paymentMethodId?: string;
 }): Promise<string | null> {
   if (!isRemoteId(input.riderId)) return null;
@@ -75,6 +78,7 @@ export async function createRideRequest(input: {
         fare: round2(input.fare),
         currency: 'USD',
         payment_status: 'pending',
+        driver_gender_pref: input.driverGenderPref ?? 'any',
         requested_at: new Date().toISOString(),
       })
       .select('id')
@@ -166,7 +170,7 @@ export async function fetchRiderName(riderId: string | null): Promise<string | n
   }
 }
 
-export async function fetchOpenRequests(): Promise<RideRow[]> {
+export async function fetchOpenRequests(driverGender?: string): Promise<RideRow[]> {
   try {
     const { data, error } = await supabase
       .from('rides')
@@ -176,7 +180,10 @@ export async function fetchOpenRequests(): Promise<RideRow[]> {
       .order('requested_at', { ascending: false })
       .limit(10);
     if (error || !data) return [];
-    return data.map(rowTo);
+    return data
+      .map(rowTo)
+      // Only surface requests this driver is eligible for (rider's gender pref).
+      .filter((r) => r.driverGenderPref === 'any' || r.driverGenderPref === driverGender);
   } catch {
     return [];
   }
@@ -184,12 +191,13 @@ export async function fetchOpenRequests(): Promise<RideRow[]> {
 
 export function pollOpenRequests(
   onUpdate: (rows: RideRow[]) => void,
+  driverGender: string | undefined,
   intervalMs = 4000,
 ): () => void {
   let stopped = false;
   const tick = async () => {
     if (stopped) return;
-    const rows = await fetchOpenRequests();
+    const rows = await fetchOpenRequests(driverGender);
     if (!stopped) onUpdate(rows);
   };
   void tick();

@@ -37,6 +37,8 @@ entirely by **OpenStreetMap** — no API keys, no map billing.
 - **Destination search** via OSM **Nominatim** geocoding (offline fallback)
 - **Route drawing** via **OSRM** (L-shaped fallback when offline)
 - **Vehicle classes** — Ez Go / Ez XL / Ez Premium — with live fare quotes
+- **Driver gender preference** — request Any / Women / Men drivers; matching and
+  open-request visibility honor it
 - **Fare engine** (base + per-km + per-min + minimum + surge) and a
   "you save ~20% vs Uber/Lyft" comparison
 - **Live trip tracking**: matching → driver en-route → arrived → in-progress,
@@ -59,6 +61,7 @@ entirely by **OpenStreetMap** — no API keys, no map billing.
 - **Go online/offline**, **incoming requests** (real open requests when matched,
   else simulated) with accept/decline
 - **Trip stepper**: to pickup → arrived → start → complete; **rate the rider**
+- **Safety selfie** required every 4 rides before going back online
 - **Earnings dashboard**: weekly total, daily bar chart, instant cash-out
 - **Invest in Ez2go**: at cash-out, drivers can put part of their earnings toward
   platform equity (shares + ownership %), tracked in `driver_investments`

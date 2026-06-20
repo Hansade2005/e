@@ -8,6 +8,7 @@ import { Text } from '@/components/ui/Text';
 import { Button } from '@/components/ui/Button';
 import { IconButton } from '@/components/ui/IconButton';
 import { useRide } from '@/store/ride';
+import { GENDER_PREFS } from '@/constants/drivers';
 import { payments, type PaymentMethod } from '@/lib/payments';
 import { formatMoney } from '@/constants/vehicles';
 import { kmToMiles } from '@/lib/geo';
@@ -29,6 +30,8 @@ export default function SelectRide() {
     requestRide,
     scheduledAt,
     scheduleRide,
+    driverGenderPref,
+    setDriverGenderPref,
   } = useRide();
 
   const [methods, setMethods] = useState<PaymentMethod[]>([]);
@@ -132,6 +135,29 @@ export default function SelectRide() {
               save {formatMoney(rivalFare - selected.fare.total)}
             </Text>
           </View>
+
+          {/* Driver gender preference */}
+          <Text variant="label" color={colors.textSecondary} style={{ marginTop: space.lg, marginBottom: space.sm }}>
+            Driver preference
+          </Text>
+          <View style={styles.prefRow}>
+            {GENDER_PREFS.map((p) => {
+              const active = p.id === driverGenderPref;
+              return (
+                <Pressable
+                  key={p.id}
+                  testID={`gender-pref-${p.id}`}
+                  onPress={() => setDriverGenderPref(p.id)}
+                  style={[styles.pref, active && styles.prefActive]}
+                >
+                  <Ionicons name={p.icon as any} size={16} color={active ? colors.jadeDark : colors.textSecondary} />
+                  <Text variant="smallStrong" color={active ? colors.jadeDark : colors.textSecondary}>
+                    {p.label}
+                  </Text>
+                </Pressable>
+              );
+            })}
+          </View>
         </ScrollView>
 
         {/* payment method */}
@@ -234,6 +260,20 @@ const styles = StyleSheet.create({
   vehTitleRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   seats: { flexDirection: 'row', alignItems: 'center', gap: 2 },
   fare: { fontFamily: fonts.monoBold, fontSize: 17, color: colors.ink },
+  prefRow: { flexDirection: 'row', gap: space.sm },
+  pref: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    height: 44,
+    borderRadius: radius.md,
+    backgroundColor: colors.surface,
+    borderWidth: 1.5,
+    borderColor: colors.surfaceAlt,
+  },
+  prefActive: { borderColor: colors.jade, backgroundColor: colors.jadeSoft },
   savings: {
     flexDirection: 'row',
     alignItems: 'center',
