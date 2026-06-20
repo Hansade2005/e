@@ -13,7 +13,8 @@ import { GENDER_PREFS } from '@/constants/drivers';
 import { RIDE_PREFS } from '@/constants/preferences';
 import { payments, type PaymentMethod } from '@/lib/payments';
 import { formatMoney } from '@/constants/vehicles';
-import { kmToMiles } from '@/lib/geo';
+import { formatDistance } from '@/lib/geo';
+import { useSettings } from '@/store/settings';
 import { colors, radius, shadow, space, fonts } from '@/theme/tokens';
 
 export default function SelectRide() {
@@ -42,12 +43,15 @@ export default function SelectRide() {
 
   const favorites = useFavorites((s) => s.favorites);
   const loadFavorites = useFavorites((s) => s.load);
+  const units = useSettings((s) => s.units);
+  const loadSettings = useSettings((s) => s.load);
   const [methods, setMethods] = useState<PaymentMethod[]>([]);
   const [booking, setBooking] = useState(false);
 
   useEffect(() => {
     loadFavorites();
-  }, [loadFavorites]);
+    loadSettings();
+  }, [loadFavorites, loadSettings]);
 
   useEffect(() => {
     payments.listMethods().then(setMethods);
@@ -97,7 +101,7 @@ export default function SelectRide() {
         </View>
         <View style={[styles.tripPill, { top: insets.top + space.sm }]}>
           <Text variant="label" color={colors.onInkMuted}>
-            {kmToMiles(distanceKm).toFixed(1)} mi · {Math.round(durationMin)} min
+            {formatDistance(distanceKm, units)} · {Math.round(durationMin)} min
           </Text>
         </View>
       </View>

@@ -20,6 +20,7 @@ export const colors = {
   jade: '#00C2A8', // primary "go"
   jadeDark: '#02A892',
   jadeSoft: '#E1F8F4', // jade tint background
+  jadeInk: '#0F2A2A', // dark jade-tinted surface (on ink)
   amber: '#FF8A3D', // signal / single hero CTA accent
   amberSoft: '#FFEEE0',
 

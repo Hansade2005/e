@@ -43,6 +43,11 @@ export function kmToMiles(km: number): number {
   return km * 0.621371;
 }
 
+/** Format a distance in the user's chosen units. */
+export function formatDistance(km: number, units: 'mi' | 'km'): string {
+  return units === 'km' ? `${km.toFixed(1)} km` : `${kmToMiles(km).toFixed(1)} mi`;
+}
+
 /** Geocode a free-text query via Nominatim, with a curated local fallback. */
 export async function searchPlaces(query: string): Promise<Place[]> {
   const q = query.trim();

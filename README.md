@@ -58,6 +58,8 @@ entirely by **OpenStreetMap** — no API keys, no map billing.
 - **Saved places** — Home / Work / favorites stored in Supabase (`saved_places`)
 - **Own Ez2go** — riders can buy into the platform too (community ownership):
   shares at $5, paid by card or Ez Wallet, with a running stake
+- **Refer & earn** — share a code; redeem a friend's for $10 Ez Wallet credit
+- **Settings** — distance units (mi/km), notification toggles, ride defaults
 - **Profile**, **payment methods**
 
 ### Driver

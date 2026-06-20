@@ -12,6 +12,7 @@ import {
 import { estimateFare, formatMoney, VEHICLE_CLASSES, type Fare, type VehicleClass } from '@/constants/vehicles';
 import { DRIVER_POOL, pickDriver, type DriverProfile, type GenderPref } from '@/constants/drivers';
 import { useFavorites } from '@/store/favorites';
+import { useSettings } from '@/store/settings';
 import { payments } from '@/lib/payments';
 import { storage } from '@/lib/storage';
 import { fetchRidesRemote, saveRideRemote, updateRideRemote, isRemoteId } from '@/lib/db';
@@ -202,7 +203,12 @@ export const useRide = create<RideState>((set, get) => ({
       return;
     }
     const pickup = get().pickup!;
-    set({ destination: p, status: 'planning' });
+    // Seed the booking with the rider's default preferences (e.g. "quiet rides
+    // by default"). Done here in the store so a manual toggle later isn't
+    // re-applied by a UI effect.
+    const quietByDefault = useSettings.getState().quietByDefault;
+    const ridePrefs = quietByDefault && get().ridePrefs.length === 0 ? ['quiet'] : get().ridePrefs;
+    set({ destination: p, status: 'planning', ridePrefs });
     const r = await getRoute(pickup, p);
     set({
       route: r.coords,
