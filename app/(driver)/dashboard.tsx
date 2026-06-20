@@ -9,7 +9,7 @@ import { Logo } from '@/components/ui/Logo';
 import { Avatar } from '@/components/ui/Avatar';
 import { Eyebrow } from '@/components/ui/Eyebrow';
 import { useAuth } from '@/store/auth';
-import { useDriver, DRIVER_HOME } from '@/store/driver';
+import { useDriver, DRIVER_HOME, SELFIE_EVERY } from '@/store/driver';
 import { nearbyDrivers } from '@/lib/geo';
 import { publishPresence } from '@/lib/live';
 import { formatMoney } from '@/constants/vehicles';
@@ -25,12 +25,24 @@ export default function Dashboard() {
     request,
     earningsToday,
     tripsToday,
+    tripsSinceSelfie,
     goOnline,
     goOffline,
     accept,
     decline,
     load,
   } = useDriver();
+  const selfieDue = tripsSinceSelfie >= SELFIE_EVERY;
+
+  function onToggleOnline() {
+    if (online) {
+      goOffline();
+    } else if (selfieDue) {
+      router.push('/(driver)/selfie'); // safety selfie required before going online
+    } else {
+      goOnline();
+    }
+  }
 
   useEffect(() => {
     load();
@@ -134,9 +146,24 @@ export default function Dashboard() {
               </View>
             ) : null}
 
+            {selfieDue && !online ? (
+              <Pressable
+                testID="selfie-banner"
+                onPress={() => router.push('/(driver)/selfie')}
+                style={styles.selfieBanner}
+              >
+                <Ionicons name="camera" size={18} color={colors.ink} />
+                <View style={{ flex: 1 }}>
+                  <Text variant="smallStrong" color={colors.ink}>Safety check required</Text>
+                  <Text variant="label" color={colors.ink}>Take a selfie to keep driving</Text>
+                </View>
+                <Ionicons name="chevron-forward" size={18} color={colors.ink} />
+              </Pressable>
+            ) : null}
+
             <Pressable
               testID="toggle-online"
-              onPress={online ? goOffline : goOnline}
+              onPress={onToggleOnline}
               style={[styles.goBtn, { backgroundColor: online ? colors.inkSoft : colors.jade }]}
             >
               <Ionicons
@@ -310,6 +337,15 @@ const styles = StyleSheet.create({
     marginBottom: space.md,
   },
   radar: { width: 12, height: 12, borderRadius: 6, backgroundColor: colors.jade },
+  selfieBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: space.md,
+    backgroundColor: colors.amber,
+    borderRadius: radius.md,
+    padding: space.md,
+    marginBottom: space.md,
+  },
   goBtn: {
     flexDirection: 'row',
     alignItems: 'center',

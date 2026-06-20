@@ -183,6 +183,7 @@ export async function upsertDriverProfileRemote(
     license: string;
     insurance: string;
     payout: string;
+    gender?: string;
   },
 ): Promise<void> {
   if (!isRemoteId(userId)) return;
@@ -198,6 +199,7 @@ export async function upsertDriverProfileRemote(
         license_no: setup.license,
         insurance_provider: setup.insurance,
         payout_method: setup.payout,
+        gender: setup.gender ?? null,
         verified: true,
       },
       { onConflict: 'id' },

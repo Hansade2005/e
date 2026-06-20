@@ -13,6 +13,7 @@ export default function DriverLayout() {
       <Stack.Screen name="trip" options={{ animation: 'fade' }} />
       <Stack.Screen name="chat" options={{ animation: 'slide_from_bottom' }} />
       <Stack.Screen name="cashout" options={{ animation: 'slide_from_bottom' }} />
+      <Stack.Screen name="selfie" options={{ animation: 'slide_from_bottom' }} />
     </Stack>
   );
 }

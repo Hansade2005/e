@@ -46,3 +46,6 @@ yarn-error.*
 # build & test artifacts
 dist/
 e2e/*.png
+
+# recording artifacts
+videos-tour/

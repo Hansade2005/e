@@ -74,6 +74,7 @@ allErrors.push(
     await tid('drv-make').fill('Toyota');
     await tid('drv-model').fill('Prius');
     await tid('drv-plate').fill('EZ-4821');
+    await tid('drv-gender-male').click();
     await tid('drv-onb-next').click();
     // Documents
     await tid('drv-license').waitFor({ timeout: 10000 });

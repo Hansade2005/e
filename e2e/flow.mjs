@@ -59,6 +59,7 @@ await page.screenshot({ path: `${SHOTS}/r2-select.png` });
 
 await step('choose-premium', async () => {
   await tid('vehicle-ezpremium').click();
+  await tid('gender-pref-female').click(); // request a women driver
 });
 
 await step('book-ride', async () => {
