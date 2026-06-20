@@ -22,6 +22,7 @@ export default function RiderLayout() {
       <Stack.Screen name="favorites" options={{ animation: 'slide_from_bottom' }} />
       <Stack.Screen name="settings" options={{ animation: 'slide_from_bottom' }} />
       <Stack.Screen name="referral" options={{ animation: 'slide_from_bottom' }} />
+      <Stack.Screen name="edit-profile" options={{ animation: 'slide_from_bottom' }} />
     </Stack>
   );
 }

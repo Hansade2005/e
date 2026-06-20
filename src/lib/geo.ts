@@ -147,6 +147,43 @@ export async function getRoute(
   };
 }
 
+/** Route through an ordered list of waypoints (pickup, …stops, destination). */
+export async function getRouteVia(
+  points: LatLng[],
+): Promise<{ coords: LatLng[]; distanceKm: number; durationMin: number }> {
+  if (points.length < 2) return { coords: points, distanceKm: 0, durationMin: 0 };
+  if (points.length === 2) return getRoute(points[0], points[1]);
+  try {
+    const path = points.map((p) => `${p.lng},${p.lat}`).join(';');
+    const url =
+      `https://router.project-osrm.org/route/v1/driving/${path}` +
+      `?overview=full&geometries=geojson`;
+    const res = await fetchWithTimeout(url);
+    if (!res.ok) throw new Error('osrm');
+    const data = await res.json();
+    const route = data?.routes?.[0];
+    if (route) {
+      const coords: LatLng[] = route.geometry.coordinates.map(
+        ([lng, lat]: [number, number]) => ({ lat, lng }),
+      );
+      return { coords, distanceKm: route.distance / 1000, durationMin: route.duration / 60 };
+    }
+  } catch {
+    // fall through to per-segment chaining
+  }
+  // Fallback: chain L-shaped segments between each pair.
+  const coords: LatLng[] = [];
+  let distanceKm = 0;
+  let durationMin = 0;
+  for (let i = 1; i < points.length; i++) {
+    const seg = await getRoute(points[i - 1], points[i]);
+    coords.push(...(i === 1 ? seg.coords : seg.coords.slice(1)));
+    distanceKm += seg.distanceKm;
+    durationMin += seg.durationMin;
+  }
+  return { coords, distanceKm, durationMin };
+}
+
 async function fetchWithTimeout(url: string, opts: RequestInit = {}, ms = 6000) {
   const controller = new AbortController();
   const id = setTimeout(() => controller.abort(), ms);

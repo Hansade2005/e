@@ -22,6 +22,8 @@ export default function SelectRide() {
   const {
     pickup,
     destination,
+    stops,
+    removeStop,
     route,
     quotes,
     selectedVehicleId,
@@ -94,6 +96,7 @@ export default function SelectRide() {
           center={pickup ?? undefined}
           pickup={pickup}
           destination={destination}
+          stops={stops}
           route={route}
         />
         <View style={[styles.back, { top: insets.top + space.sm }]}>
@@ -109,7 +112,38 @@ export default function SelectRide() {
       <View style={[styles.sheet, { paddingBottom: insets.bottom + space.lg }]}>
         <View style={styles.grabber} />
 
-        <ScrollView showsVerticalScrollIndicator={false} style={{ maxHeight: 300 }}>
+        <ScrollView showsVerticalScrollIndicator={false} style={{ maxHeight: 320 }}>
+          {/* Route with optional stops */}
+          <View style={styles.routeCard}>
+            <View style={styles.routeLine}>
+              <View style={[styles.rDot, { backgroundColor: colors.jade }]} />
+              <Text variant="small" numberOfLines={1} style={{ flex: 1 }}>{pickup?.name}</Text>
+            </View>
+            {stops.map((s, i) => (
+              <View key={`${s.id}-${i}`} style={styles.routeLine} testID={`stop-${i}`}>
+                <View style={[styles.rDot, { backgroundColor: colors.amber }]} />
+                <Text variant="small" numberOfLines={1} style={{ flex: 1 }}>{s.name}</Text>
+                <Pressable onPress={() => removeStop(i)} hitSlop={8} testID={`remove-stop-${i}`}>
+                  <Ionicons name="close" size={16} color={colors.textMuted} />
+                </Pressable>
+              </View>
+            ))}
+            <View style={styles.routeLine}>
+              <View style={[styles.rSquare, { backgroundColor: colors.ink }]} />
+              <Text variant="small" numberOfLines={1} style={{ flex: 1 }}>{destination?.name}</Text>
+            </View>
+            {stops.length < 3 ? (
+              <Pressable
+                style={styles.addStop}
+                testID="add-stop"
+                onPress={() => router.push({ pathname: '/(rider)/search', params: { mode: 'stop' } })}
+              >
+                <Ionicons name="add" size={16} color={colors.jade} />
+                <Text variant="smallStrong" color={colors.jade}>Add a stop</Text>
+              </Pressable>
+            ) : null}
+          </View>
+
           <Text variant="label" color={colors.textSecondary} style={{ marginBottom: space.sm }}>
             Choose your ride
           </Text>
@@ -298,6 +332,17 @@ const styles = StyleSheet.create({
     backgroundColor: colors.surfaceAlt,
     marginBottom: space.md,
   },
+  routeCard: {
+    backgroundColor: colors.canvas,
+    borderRadius: radius.md,
+    padding: space.md,
+    marginBottom: space.md,
+    gap: 8,
+  },
+  routeLine: { flexDirection: 'row', alignItems: 'center', gap: space.sm },
+  rDot: { width: 9, height: 9, borderRadius: 5 },
+  rSquare: { width: 9, height: 9, borderRadius: 2 },
+  addStop: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingTop: 4 },
   vehicle: {
     flexDirection: 'row',
     alignItems: 'center',

@@ -50,6 +50,23 @@ await step('ai-assistant', async () => {
 });
 await page.screenshot({ path: `${SHOTS}/f1-assistant.png` });
 
+// ---- Editable profile ----
+await step('edit-profile', async () => {
+  await tid('open-profile').click();
+  await tid('edit-profile').click({ timeout: 10000 });
+  await tid('edit-name').waitFor({ timeout: 10000 });
+  await tid('edit-name').fill('Alex Demo');
+  await tid('edit-phone').fill('(555) 222-3344');
+  await tid('edit-save').click();
+  // back on profile — name updated
+  await page.waitForFunction(
+    () => /Alex Demo/.test(document.body.innerText),
+    { timeout: 8000 },
+  );
+  await tid('profile-back').click();
+  await tid('search-bar').waitFor({ timeout: 10000 });
+});
+
 // ---- Settings: switch units + toggles ----
 await step('settings', async () => {
   await tid('open-profile').click();
