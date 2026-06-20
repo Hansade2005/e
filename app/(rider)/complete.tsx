@@ -12,7 +12,8 @@ import { useRide } from '@/store/ride';
 import { useWallet } from '@/store/wallet';
 import { useFavorites } from '@/store/favorites';
 import { formatMoney } from '@/constants/vehicles';
-import { kmToMiles } from '@/lib/geo';
+import { formatDistance } from '@/lib/geo';
+import { useSettings } from '@/store/settings';
 import { colors, radius, space, fonts } from '@/theme/tokens';
 
 const TIPS = [0, 2, 3, 5];
@@ -30,6 +31,7 @@ export default function Complete() {
   const spendWallet = useWallet((s) => s.spend);
   const toggleFavorite = useFavorites((s) => s.toggle);
   const loadFavorites = useFavorites((s) => s.load);
+  const units = useSettings((s) => s.units);
   const favorites = useFavorites((s) => s.favorites);
   const isFavorite = !!driver && favorites.some((f) => f.ref === driver.id);
 
@@ -103,7 +105,7 @@ export default function Complete() {
           <View style={styles.receiptDivider} />
           <Row label="Total paid" value={formatMoney(total)} bold />
           <Text variant="small" color={colors.textMuted} style={{ marginTop: space.sm }}>
-            {kmToMiles(distanceKm).toFixed(1)} mi · {Math.round(durationMin)} min ·{' '}
+            {formatDistance(distanceKm, units)} · {Math.round(durationMin)} min ·{' '}
             {walletApplied > 0 ? 'Ez Wallet + Visa •••• 4242' : 'Visa •••• 4242'}
           </Text>
         </View>

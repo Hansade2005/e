@@ -50,6 +50,17 @@ await step('ai-assistant', async () => {
 });
 await page.screenshot({ path: `${SHOTS}/f1-assistant.png` });
 
+// ---- Settings: switch units + toggles ----
+await step('settings', async () => {
+  await tid('open-profile').click();
+  await tid('menu-settings').click({ timeout: 10000 });
+  await tid('units-km').click({ timeout: 10000 }); // switch to kilometers
+  await tid('toggle-promos').click(); // toggle a notification pref
+  await tid('settings-back').click();
+  await tid('profile-back').click();
+  await tid('search-bar').waitFor({ timeout: 10000 });
+});
+
 // ---- Wallet + promo code ----
 await step('apply-promo', async () => {
   await tid('open-profile').click();
@@ -62,6 +73,20 @@ await step('apply-promo', async () => {
     { timeout: 8000 },
   );
   await tid('pay-back').click();
+  await tid('profile-back').click();
+  await tid('search-bar').waitFor({ timeout: 10000 });
+});
+
+// ---- Referral: code + redeem a friend's code ----
+await step('referral', async () => {
+  await tid('open-profile').click();
+  await tid('menu-referral').click({ timeout: 10000 });
+  await tid('referral-code').waitFor({ timeout: 10000 });
+  await tid('referral-input').fill('EZFRIEND');
+  await tid('referral-redeem').click();
+  await tid('referral-redeemed').waitFor({ timeout: 8000 }); // $10 credited
+  await page.screenshot({ path: `${SHOTS}/f0-referral.png` });
+  await tid('referral-back').click();
   await tid('profile-back').click();
   await tid('search-bar').waitFor({ timeout: 10000 });
 });

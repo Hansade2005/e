@@ -21,11 +21,13 @@ import {
 import { View } from 'react-native';
 import { useAuth } from '@/store/auth';
 import { useOnboarding } from '@/store/onboarding';
+import { useSettings } from '@/store/settings';
 import { colors } from '@/theme/tokens';
 
 export default function RootLayout() {
   const init = useAuth((s) => s.init);
   const loadOnboarding = useOnboarding((s) => s.load);
+  const loadSettings = useSettings((s) => s.load);
 
   const [loaded] = useFonts({
     SpaceGrotesk_500Medium,
@@ -41,7 +43,8 @@ export default function RootLayout() {
   useEffect(() => {
     init();
     loadOnboarding();
-  }, [init, loadOnboarding]);
+    loadSettings();
+  }, [init, loadOnboarding, loadSettings]);
 
   if (!loaded) {
     return <View style={{ flex: 1, backgroundColor: colors.ink }} />;

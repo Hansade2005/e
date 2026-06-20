@@ -11,7 +11,8 @@ import { Eyebrow } from '@/components/ui/Eyebrow';
 import { Stars } from '@/components/ui/Stars';
 import { useRide } from '@/store/ride';
 import { formatMoney } from '@/constants/vehicles';
-import { getRoute, kmToMiles, type LatLng } from '@/lib/geo';
+import { getRoute, formatDistance, type LatLng } from '@/lib/geo';
+import { useSettings } from '@/store/settings';
 import { colors, radius, shadow, space, fonts } from '@/theme/tokens';
 
 export default function TripDetails() {
@@ -20,6 +21,7 @@ export default function TripDetails() {
   const history = useRide((s) => s.history);
   const setPickup = useRide((s) => s.setPickup);
   const setDestination = useRide((s) => s.setDestination);
+  const units = useSettings((s) => s.units);
 
   // Strict lookup — an unknown id safely redirects rather than showing a
   // different trip's details.
@@ -103,7 +105,7 @@ export default function TripDetails() {
           </View>
 
           <View style={styles.metaRow}>
-            <Meta icon="speedometer-outline" value={`${kmToMiles(ride.distanceKm).toFixed(1)} mi`} label="Distance" />
+            <Meta icon="speedometer-outline" value={formatDistance(ride.distanceKm, units)} label="Distance" />
             <Meta icon="time-outline" value={`${Math.round(ride.durationMin)} min`} label="Duration" />
             <Meta icon="person-outline" value={ride.driverName.split(' ')[0]} label="Driver" />
           </View>
