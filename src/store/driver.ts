@@ -25,6 +25,7 @@ export type RideRequest = {
   pickupRoute: LatLng[];
   tripRoute: LatLng[];
   liveId?: string; // Supabase rides.id when this is a real request
+  prefs?: string[]; // rider comfort/accessibility preferences
 };
 
 export type DriverPhase =
@@ -85,6 +86,7 @@ async function buildRequestFromRow(row: RideRow): Promise<RideRequest> {
     etaMin: Math.max(1, Math.round(toPickup.durationMin)),
     pickupRoute: toPickup.coords,
     tripRoute: trip.coords,
+    prefs: row.ridePrefs,
   };
 }
 

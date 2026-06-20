@@ -243,6 +243,63 @@ export async function fetchInvestmentRemote(
   }
 }
 
+// ---------------------------------------------------------------- favorite drivers
+
+export type FavoriteDriver = {
+  ref: string; // pool id or real driver uuid
+  name: string;
+  vehicle: string;
+  avatarColor: string;
+};
+
+/** Returns the user's favorites, or null when the backend is unreachable (so
+ *  callers can distinguish a network failure from a genuinely empty list). */
+export async function fetchFavoritesRemote(userId: string): Promise<FavoriteDriver[] | null> {
+  if (!isRemoteId(userId)) return null;
+  try {
+    const { data, error } = await supabase
+      .from('favorite_drivers')
+      .select('driver_ref, driver_name, driver_vehicle, avatar_color')
+      .eq('user_id', userId);
+    if (error || !data) return null;
+    return data.map((r: any) => ({
+      ref: r.driver_ref,
+      name: r.driver_name ?? 'Driver',
+      vehicle: r.driver_vehicle ?? '',
+      avatarColor: r.avatar_color ?? '#00C2A8',
+    }));
+  } catch {
+    return null;
+  }
+}
+
+export async function addFavoriteRemote(userId: string, fav: FavoriteDriver): Promise<void> {
+  if (!isRemoteId(userId)) return;
+  try {
+    await supabase.from('favorite_drivers').upsert(
+      {
+        user_id: userId,
+        driver_ref: fav.ref,
+        driver_name: fav.name,
+        driver_vehicle: fav.vehicle,
+        avatar_color: fav.avatarColor,
+      },
+      { onConflict: 'user_id,driver_ref' },
+    );
+  } catch {
+    /* offline-friendly */
+  }
+}
+
+export async function removeFavoriteRemote(userId: string, ref: string): Promise<void> {
+  if (!isRemoteId(userId)) return;
+  try {
+    await supabase.from('favorite_drivers').delete().eq('user_id', userId).eq('driver_ref', ref);
+  } catch {
+    /* ignore */
+  }
+}
+
 function round2(n: number): number {
   return Math.round(n * 100) / 100;
 }

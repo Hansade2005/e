@@ -8,7 +8,9 @@ import { Text } from '@/components/ui/Text';
 import { Button } from '@/components/ui/Button';
 import { IconButton } from '@/components/ui/IconButton';
 import { useRide } from '@/store/ride';
+import { useFavorites } from '@/store/favorites';
 import { GENDER_PREFS } from '@/constants/drivers';
+import { RIDE_PREFS } from '@/constants/preferences';
 import { payments, type PaymentMethod } from '@/lib/payments';
 import { formatMoney } from '@/constants/vehicles';
 import { kmToMiles } from '@/lib/geo';
@@ -32,10 +34,20 @@ export default function SelectRide() {
     scheduleRide,
     driverGenderPref,
     setDriverGenderPref,
+    preferFavorite,
+    setPreferFavorite,
+    ridePrefs,
+    toggleRidePref,
   } = useRide();
 
+  const favorites = useFavorites((s) => s.favorites);
+  const loadFavorites = useFavorites((s) => s.load);
   const [methods, setMethods] = useState<PaymentMethod[]>([]);
   const [booking, setBooking] = useState(false);
+
+  useEffect(() => {
+    loadFavorites();
+  }, [loadFavorites]);
 
   useEffect(() => {
     payments.listMethods().then(setMethods);
@@ -151,6 +163,50 @@ export default function SelectRide() {
                   style={[styles.pref, active && styles.prefActive]}
                 >
                   <Ionicons name={p.icon as any} size={16} color={active ? colors.jadeDark : colors.textSecondary} />
+                  <Text variant="smallStrong" color={active ? colors.jadeDark : colors.textSecondary}>
+                    {p.label}
+                  </Text>
+                </Pressable>
+              );
+            })}
+          </View>
+
+          {/* Favorite driver */}
+          {favorites.length ? (
+            <Pressable
+              testID="prefer-favorite"
+              onPress={() => setPreferFavorite(!preferFavorite)}
+              style={[styles.favRow, preferFavorite && styles.favRowActive]}
+            >
+              <Ionicons
+                name={preferFavorite ? 'heart' : 'heart-outline'}
+                size={18}
+                color={preferFavorite ? colors.amber : colors.textSecondary}
+              />
+              <Text variant="smallStrong" color={preferFavorite ? colors.ink : colors.textSecondary} style={{ flex: 1 }}>
+                Favorite driver
+              </Text>
+              <Text variant="label" color={colors.textMuted}>
+                {favorites.length} saved
+              </Text>
+            </Pressable>
+          ) : null}
+
+          {/* Ride preferences */}
+          <Text variant="label" color={colors.textSecondary} style={{ marginTop: space.lg, marginBottom: space.sm }}>
+            Preferences
+          </Text>
+          <View style={styles.prefChips}>
+            {RIDE_PREFS.map((p) => {
+              const active = ridePrefs.includes(p.id);
+              return (
+                <Pressable
+                  key={p.id}
+                  testID={`ride-pref-${p.id}`}
+                  onPress={() => toggleRidePref(p.id)}
+                  style={[styles.prefChip, active && styles.prefChipActive]}
+                >
+                  <Ionicons name={p.icon} size={14} color={active ? colors.jadeDark : colors.textSecondary} />
                   <Text variant="smallStrong" color={active ? colors.jadeDark : colors.textSecondary}>
                     {p.label}
                   </Text>
@@ -274,6 +330,32 @@ const styles = StyleSheet.create({
     borderColor: colors.surfaceAlt,
   },
   prefActive: { borderColor: colors.jade, backgroundColor: colors.jadeSoft },
+  favRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    backgroundColor: colors.surface,
+    borderWidth: 1.5,
+    borderColor: colors.surfaceAlt,
+    borderRadius: radius.md,
+    paddingHorizontal: space.lg,
+    height: 50,
+    marginTop: space.md,
+  },
+  favRowActive: { borderColor: colors.amber, backgroundColor: colors.amberSoft },
+  prefChips: { flexDirection: 'row', flexWrap: 'wrap', gap: space.sm },
+  prefChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    backgroundColor: colors.surface,
+    borderWidth: 1.5,
+    borderColor: colors.surfaceAlt,
+    borderRadius: radius.pill,
+    paddingHorizontal: space.md,
+    height: 38,
+  },
+  prefChipActive: { borderColor: colors.jade, backgroundColor: colors.jadeSoft },
   savings: {
     flexDirection: 'row',
     alignItems: 'center',
