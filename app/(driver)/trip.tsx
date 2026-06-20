@@ -10,6 +10,7 @@ import { Eyebrow } from '@/components/ui/Eyebrow';
 import { Button } from '@/components/ui/Button';
 import { Stars } from '@/components/ui/Stars';
 import { useDriver } from '@/store/driver';
+import { prefLabels } from '@/constants/preferences';
 import { formatMoney } from '@/constants/vehicles';
 import { colors, radius, shadow, space, fonts } from '@/theme/tokens';
 
@@ -117,6 +118,15 @@ export default function DriverTrip() {
             </Pressable>
           </View>
 
+          {request.prefs && request.prefs.length ? (
+            <View style={styles.prefsRow}>
+              <Ionicons name="sparkles" size={14} color={colors.jade} />
+              <Text variant="small" color={colors.onInk} style={{ flex: 1 }}>
+                Rider asked for: {prefLabels(request.prefs)}
+              </Text>
+            </View>
+          ) : null}
+
           <Text variant="small" color={colors.onInkMuted} style={{ marginBottom: space.md }}>
             {action?.sub}
           </Text>
@@ -174,6 +184,15 @@ const styles = StyleSheet.create({
     marginBottom: space.lg,
   },
   riderRow: { flexDirection: 'row', alignItems: 'center', gap: space.md, marginBottom: space.lg },
+  prefsRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    backgroundColor: colors.inkSoft,
+    borderRadius: radius.md,
+    padding: space.md,
+    marginBottom: space.md,
+  },
   iconBtn: {
     width: 44,
     height: 44,

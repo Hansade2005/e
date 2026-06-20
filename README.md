@@ -39,6 +39,9 @@ entirely by **OpenStreetMap** — no API keys, no map billing.
 - **Vehicle classes** — Ez Go / Ez XL / Ez Premium — with live fare quotes
 - **Driver gender preference** — request Any / Women / Men drivers; matching and
   open-request visibility honor it
+- **Favorite drivers** — heart a driver after a ride; request favorites at booking
+- **Ride preferences** — quiet ride, help with bags, wheelchair-accessible, pet
+  on board; shown to the matched driver
 - **Fare engine** (base + per-km + per-min + minimum + surge) and a
   "you save ~20% vs Uber/Lyft" comparison
 - **Live trip tracking**: matching → driver en-route → arrived → in-progress,

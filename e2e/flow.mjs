@@ -60,6 +60,8 @@ await page.screenshot({ path: `${SHOTS}/r2-select.png` });
 await step('choose-premium', async () => {
   await tid('vehicle-ezpremium').click();
   await tid('gender-pref-female').click(); // request a women driver
+  await tid('ride-pref-quiet').click(); // quiet ride preference
+  await tid('ride-pref-bags').click(); // help with bags
 });
 
 await step('book-ride', async () => {
@@ -94,8 +96,18 @@ await page.screenshot({ path: `${SHOTS}/r4-complete.png` });
 
 await step('finish-ride', async () => {
   await tid('tip-5').click().catch(() => {});
+  await tid('favorite-driver').click().catch(() => {}); // save this driver
   await tid('complete-done').click();
   await tid('search-bar').waitFor({ timeout: 15000 });
+});
+
+await step('favorites-saved', async () => {
+  await tid('open-profile').click();
+  await tid('menu-favorites').click({ timeout: 10000 });
+  await page.locator('[data-testid^="fav-"]').first().waitFor({ timeout: 10000 });
+  await tid('favorites-back').click();
+  await tid('profile-back').click();
+  await tid('search-bar').waitFor({ timeout: 10000 });
 });
 
 // Trip details + rebook from history (uses the trip we just completed).

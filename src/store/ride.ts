@@ -10,7 +10,8 @@ import {
   type Place,
 } from '@/lib/geo';
 import { estimateFare, formatMoney, VEHICLE_CLASSES, type Fare, type VehicleClass } from '@/constants/vehicles';
-import { pickDriver, type DriverProfile, type GenderPref } from '@/constants/drivers';
+import { DRIVER_POOL, pickDriver, type DriverProfile, type GenderPref } from '@/constants/drivers';
+import { useFavorites } from '@/store/favorites';
 import { payments } from '@/lib/payments';
 import { storage } from '@/lib/storage';
 import { fetchRidesRemote, saveRideRemote, updateRideRemote, isRemoteId } from '@/lib/db';
@@ -66,6 +67,8 @@ type RideState = {
   quotes: Quote[];
   selectedVehicleId: VehicleClass['id'];
   driverGenderPref: GenderPref;
+  preferFavorite: boolean;
+  ridePrefs: string[];
   methodId: string;
   scheduledAt: number | null; // null = ride now
   driver: DriverProfile | null;
@@ -83,6 +86,8 @@ type RideState = {
   setDestination: (p: Place | null) => Promise<void>;
   selectVehicle: (id: VehicleClass['id']) => void;
   setDriverGenderPref: (g: GenderPref) => void;
+  setPreferFavorite: (v: boolean) => void;
+  toggleRidePref: (id: string) => void;
   setMethod: (id: string) => void;
   setScheduledAt: (t: number | null) => void;
   requestRide: () => Promise<void>;
@@ -130,6 +135,17 @@ function quotesFor(distanceKm: number, durationMin: number): Quote[] {
   }));
 }
 
+// Pick a simulated driver, preferring the rider's favorites when requested,
+// then honoring the gender preference.
+function pickRideDriver(genderPref: GenderPref, preferFavorite: boolean): DriverProfile {
+  if (preferFavorite) {
+    const refs = new Set(useFavorites.getState().favorites.map((f) => f.ref));
+    const favPool = DRIVER_POOL.filter((d) => refs.has(d.id));
+    if (favPool.length) return favPool[Math.floor(Math.random() * favPool.length)];
+  }
+  return pickDriver(genderPref);
+}
+
 export const useRide = create<RideState>((set, get) => ({
   status: 'idle',
   pickup: {
@@ -147,6 +163,8 @@ export const useRide = create<RideState>((set, get) => ({
   quotes: quotesFor(0, 0),
   selectedVehicleId: 'ezgo',
   driverGenderPref: 'any',
+  preferFavorite: false,
+  ridePrefs: [],
   methodId: 'pm_visa',
   scheduledAt: null,
   driver: null,
@@ -200,6 +218,15 @@ export const useRide = create<RideState>((set, get) => ({
 
   setDriverGenderPref(g) {
     set({ driverGenderPref: g });
+  },
+
+  setPreferFavorite(v) {
+    set({ preferFavorite: v });
+  },
+
+  toggleRidePref(id) {
+    const cur = get().ridePrefs;
+    set({ ridePrefs: cur.includes(id) ? cur.filter((p) => p !== id) : [...cur, id] });
   },
 
   setMethod(id) {
@@ -265,6 +292,7 @@ export const useRide = create<RideState>((set, get) => ({
         distanceKm: get().distanceKm,
         durationMin: get().durationMin,
         driverGenderPref: get().driverGenderPref,
+        ridePrefs: get().ridePrefs,
       });
       if (liveId) {
         set({ liveRideId: liveId });
@@ -323,7 +351,7 @@ export const useRide = create<RideState>((set, get) => ({
     // 1) match a driver (local simulation / fallback)
     timers.push(
       setTimeout(async () => {
-        const driver = pickDriver(get().driverGenderPref);
+        const driver = pickRideDriver(get().driverGenderPref, get().preferFavorite);
         const start: LatLng = {
           lat: pickup.lat + 0.012,
           lng: pickup.lng - 0.014,
@@ -385,6 +413,8 @@ export const useRide = create<RideState>((set, get) => ({
       progress: 0,
       lastReceipt: null,
       liveRideId: null,
+      preferFavorite: false,
+      ridePrefs: [],
       // scheduledAt is a pickup-time preference — it survives reset() (which
       // runs on every home focus) and is cleared explicitly once a ride is booked.
     });

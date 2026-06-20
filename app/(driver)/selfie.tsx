@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { View, StyleSheet, Pressable } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
@@ -20,10 +20,16 @@ export default function Selfie() {
   const goOnline = useDriver((s) => s.goOnline);
   const [stage, setStage] = useState<Stage>('frame');
 
+  // Simulated face verification (no real camera in the web/demo build). Managed
+  // via effect so the timer is cleared if the screen unmounts mid-verify.
+  useEffect(() => {
+    if (stage !== 'verifying') return;
+    const timer = setTimeout(() => setStage('verified'), 1400);
+    return () => clearTimeout(timer);
+  }, [stage]);
+
   function capture() {
     setStage('verifying');
-    // Simulated face verification (no real camera in the web/demo build).
-    setTimeout(() => setStage('verified'), 1400);
   }
 
   async function done() {

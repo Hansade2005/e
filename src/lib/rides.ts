@@ -25,6 +25,7 @@ export type RideRow = {
   distanceKm: number;
   durationMin: number;
   driverGenderPref: string;
+  ridePrefs: string[];
 };
 
 function rowTo(r: any): RideRow {
@@ -40,6 +41,7 @@ function rowTo(r: any): RideRow {
     destination: { id: 'd', name: r.dest_name ?? 'Destination', address: '', lat: r.dest_lat, lng: r.dest_lng },
     vehicleClass: r.vehicle_class,
     driverGenderPref: r.driver_gender_pref ?? 'any',
+    ridePrefs: r.ride_prefs ? String(r.ride_prefs).split(',').filter(Boolean) : [],
     fare: Number(r.fare ?? 0),
     distanceKm: Number(r.distance_km ?? 0),
     durationMin: Number(r.duration_min ?? 0),
@@ -57,6 +59,7 @@ export async function createRideRequest(input: {
   distanceKm: number;
   durationMin: number;
   driverGenderPref?: string;
+  ridePrefs?: string[];
   paymentMethodId?: string;
 }): Promise<string | null> {
   if (!isRemoteId(input.riderId)) return null;
@@ -79,6 +82,7 @@ export async function createRideRequest(input: {
         currency: 'USD',
         payment_status: 'pending',
         driver_gender_pref: input.driverGenderPref ?? 'any',
+        ride_prefs: (input.ridePrefs ?? []).join(','),
         requested_at: new Date().toISOString(),
       })
       .select('id')

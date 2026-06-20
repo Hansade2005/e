@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { View, StyleSheet, ScrollView, Pressable } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
@@ -10,6 +10,7 @@ import { Stars } from '@/components/ui/Stars';
 import { Eyebrow } from '@/components/ui/Eyebrow';
 import { useRide } from '@/store/ride';
 import { useWallet } from '@/store/wallet';
+import { useFavorites } from '@/store/favorites';
 import { formatMoney } from '@/constants/vehicles';
 import { kmToMiles } from '@/lib/geo';
 import { colors, radius, space, fonts } from '@/theme/tokens';
@@ -27,6 +28,14 @@ export default function Complete() {
   const reset = useRide((s) => s.reset);
   const walletBalance = useWallet((s) => s.balance);
   const spendWallet = useWallet((s) => s.spend);
+  const toggleFavorite = useFavorites((s) => s.toggle);
+  const loadFavorites = useFavorites((s) => s.load);
+  const favorites = useFavorites((s) => s.favorites);
+  const isFavorite = !!driver && favorites.some((f) => f.ref === driver.id);
+
+  useEffect(() => {
+    loadFavorites();
+  }, [loadFavorites]);
 
   const [stars, setStars] = useState(5);
   const [tip, setTip] = useState(3);
@@ -131,6 +140,30 @@ export default function Complete() {
             <Stars value={stars} size={24} onChange={setStars} />
           </View>
         ) : null}
+
+        {driver ? (
+          <Pressable
+            testID="favorite-driver"
+            style={styles.favBtn}
+            onPress={() =>
+              toggleFavorite({
+                ref: driver.id,
+                name: driver.name,
+                vehicle: driver.car,
+                avatarColor: driver.avatarColor,
+              })
+            }
+          >
+            <Ionicons
+              name={isFavorite ? 'heart' : 'heart-outline'}
+              size={18}
+              color={isFavorite ? colors.amber : colors.textSecondary}
+            />
+            <Text variant="smallStrong" color={isFavorite ? colors.ink : colors.textSecondary}>
+              {isFavorite ? `${driver.name.split(' ')[0]} is a favorite` : 'Add to favorite drivers'}
+            </Text>
+          </Pressable>
+        ) : null}
       </ScrollView>
 
       <View style={[styles.footer, { paddingBottom: insets.bottom + space.lg }]}>
@@ -193,6 +226,16 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   tipActive: { backgroundColor: colors.ink, borderColor: colors.ink },
+  favBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    backgroundColor: colors.surface,
+    borderRadius: radius.lg,
+    paddingVertical: space.md,
+    marginTop: space.md,
+  },
   rateCard: {
     flexDirection: 'row',
     alignItems: 'center',
