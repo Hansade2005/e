@@ -149,6 +149,18 @@ npm run e2e             # drive the full rider + driver journeys in Chromium
 tracking → completion + tip + rating → switch to driver → go online → accept a
 request → drive the trip → earnings. Screenshots are written to `e2e/*.png`.
 
+### Recording the demo video
+
+```bash
+npm run serve:web &          # or `npm start` (Expo dev server) on :8080
+node e2e/demo.mjs            # records a captioned tour to e2e/video/*.webm
+bash e2e/transcode-demo.sh   # → e2e/ez2go-demo.mp4 (compact H.264 + thumbnail)
+```
+
+`demo.mjs` uses Playwright's built-in video recorder to drive a full, captioned
+walkthrough of every feature; `transcode-demo.sh` runs ffmpeg to produce a small
+shareable `.mp4` with an embedded poster frame.
+
 ---
 
 ## Project structure
