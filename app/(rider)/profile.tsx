@@ -43,15 +43,16 @@ export default function Profile() {
       </View>
 
       <ScrollView contentContainerStyle={{ padding: space.xl, paddingBottom: insets.bottom + space.xxl }}>
-        <View style={styles.identity}>
+        <Pressable style={styles.identity} testID="edit-profile" onPress={() => router.push('/(rider)/edit-profile')}>
           <Avatar name={user?.name ?? 'Rider'} color={user?.avatarColor} size={64} />
           <View style={{ flex: 1 }}>
             <Text variant="h2">{user?.name}</Text>
             <Text variant="small" color={colors.textSecondary}>
-              {user?.email}
+              {user?.phone ? user.phone : user?.email}
             </Text>
           </View>
-        </View>
+          <Ionicons name="create-outline" size={22} color={colors.textMuted} />
+        </Pressable>
 
         <View style={styles.stats}>
           <Stat value={user?.rating?.toFixed(2) ?? '5.0'} label="Rating" />

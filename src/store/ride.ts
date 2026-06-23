@@ -3,6 +3,7 @@ import {
   DEFAULT_CENTER,
   getCurrentLocation,
   getRoute,
+  getRouteVia,
   haversineKm,
   pointAlong,
   reverseGeocode,
@@ -62,6 +63,7 @@ type RideState = {
   status: RideStatus;
   pickup: Place | null;
   destination: Place | null;
+  stops: Place[]; // optional intermediate stops
   route: LatLng[];
   distanceKm: number;
   durationMin: number;
@@ -85,6 +87,8 @@ type RideState = {
   setPickup: (p: Place) => void;
   setPickupToCurrent: () => Promise<boolean>;
   setDestination: (p: Place | null) => Promise<void>;
+  addStop: (p: Place) => Promise<void>;
+  removeStop: (index: number) => Promise<void>;
   selectVehicle: (id: VehicleClass['id']) => void;
   setDriverGenderPref: (g: GenderPref) => void;
   setPreferFavorite: (v: boolean) => void;
@@ -136,6 +140,23 @@ function quotesFor(distanceKm: number, durationMin: number): Quote[] {
   }));
 }
 
+// Recompute the route + fare through pickup → stops → destination.
+async function recomputeRoute(get: () => RideState, set: (p: Partial<RideState>) => void) {
+  const { pickup, destination, stops } = get();
+  if (!pickup || !destination) return;
+  const r = await getRouteVia([pickup, ...stops, destination]);
+  // The request is async; if the rider changed the route (added/removed a stop,
+  // picked a new destination) while it was in flight, drop this stale result.
+  const cur = get();
+  if (cur.pickup !== pickup || cur.destination !== destination || cur.stops !== stops) return;
+  set({
+    route: r.coords,
+    distanceKm: r.distanceKm,
+    durationMin: r.durationMin,
+    quotes: quotesFor(r.distanceKm, r.durationMin),
+  });
+}
+
 // Pick a simulated driver, preferring the rider's favorites when requested,
 // then honoring the gender preference.
 function pickRideDriver(genderPref: GenderPref, preferFavorite: boolean): DriverProfile {
@@ -158,6 +179,7 @@ export const useRide = create<RideState>((set, get) => ({
     kind: 'recent',
   },
   destination: null,
+  stops: [],
   route: [],
   distanceKm: 0,
   durationMin: 0,
@@ -199,23 +221,27 @@ export const useRide = create<RideState>((set, get) => ({
 
   async setDestination(p) {
     if (!p) {
-      set({ destination: null, route: [], status: 'idle', quotes: quotesFor(0, 0) });
+      set({ destination: null, stops: [], route: [], status: 'idle', quotes: quotesFor(0, 0) });
       return;
     }
-    const pickup = get().pickup!;
     // Seed the booking with the rider's default preferences (e.g. "quiet rides
     // by default"). Done here in the store so a manual toggle later isn't
     // re-applied by a UI effect.
     const quietByDefault = useSettings.getState().quietByDefault;
     const ridePrefs = quietByDefault && get().ridePrefs.length === 0 ? ['quiet'] : get().ridePrefs;
     set({ destination: p, status: 'planning', ridePrefs });
-    const r = await getRoute(pickup, p);
-    set({
-      route: r.coords,
-      distanceKm: r.distanceKm,
-      durationMin: r.durationMin,
-      quotes: quotesFor(r.distanceKm, r.durationMin),
-    });
+    await recomputeRoute(get, set);
+  },
+
+  async addStop(p) {
+    if (get().stops.length >= 3) return; // cap intermediate stops
+    set({ stops: [...get().stops, p] });
+    await recomputeRoute(get, set);
+  },
+
+  async removeStop(index) {
+    set({ stops: get().stops.filter((_, i) => i !== index) });
+    await recomputeRoute(get, set);
   },
 
   selectVehicle(id) {
@@ -409,6 +435,7 @@ export const useRide = create<RideState>((set, get) => ({
     set({
       status: 'idle',
       destination: null,
+      stops: [],
       route: [],
       distanceKm: 0,
       durationMin: 0,

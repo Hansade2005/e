@@ -36,6 +36,8 @@ entirely by **OpenStreetMap** — no API keys, no map billing.
 - **Map home** on OpenStreetMap with live nearby cars and saved-place chips
 - **Destination search** via OSM **Nominatim** geocoding (offline fallback)
 - **Route drawing** via **OSRM** (L-shaped fallback when offline)
+- **Multi-stop rides** — add intermediate stops on the select-ride screen; the
+  route, distance and fare recompute through every waypoint (OSRM via-routing)
 - **Vehicle classes** — Ez Go / Ez XL / Ez Premium — with live fare quotes
 - **Driver gender preference** — request Any / Women / Men drivers; matching and
   open-request visibility honor it
@@ -60,6 +62,7 @@ entirely by **OpenStreetMap** — no API keys, no map billing.
   shares at $5, paid by card or Ez Wallet, with a running stake
 - **Refer & earn** — share a code; redeem a friend's for $10 Ez Wallet credit
 - **Settings** — distance units (mi/km), notification toggles, ride defaults
+- **Editable profile** — update display name and phone from the profile screen
 - **Profile**, **payment methods**
 
 ### Driver
@@ -145,6 +148,18 @@ npm run e2e             # drive the full rider + driver journeys in Chromium
 `e2e/flow.mjs` walks: guest sign-in → search → pick a ride → book → live
 tracking → completion + tip + rating → switch to driver → go online → accept a
 request → drive the trip → earnings. Screenshots are written to `e2e/*.png`.
+
+### Recording the demo video
+
+```bash
+npm run serve:web &          # or `npm start` (Expo dev server) on :8080
+node e2e/demo.mjs            # records a captioned tour to e2e/video/*.webm
+bash e2e/transcode-demo.sh   # → e2e/ez2go-demo.mp4 (compact H.264 + thumbnail)
+```
+
+`demo.mjs` uses Playwright's built-in video recorder to drive a full, captioned
+walkthrough of every feature; `transcode-demo.sh` runs ffmpeg to produce a small
+shareable `.mp4` with an embedded poster frame.
 
 ---
 

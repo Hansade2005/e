@@ -92,10 +92,17 @@ function Recenter({
   return null;
 }
 
+const stopIcon = divIcon(
+  `<div style="width:16px;height:16px;border-radius:50%;background:#FF8A3D;
+    border:3px solid #fff;box-shadow:0 2px 6px rgba(14,23,38,.35)"></div>`,
+  [16, 16],
+);
+
 export default function MapView({
   center = DEFAULT_CENTER,
   pickup,
   destination,
+  stops = [],
   route = [],
   pickupRoute = [],
   drivers = [],
@@ -138,6 +145,9 @@ export default function MapView({
 
       {drivers.map((d, i) => (
         <Marker key={`drv-${i}`} position={[d.lat, d.lng]} icon={ghostCarIcon} />
+      ))}
+      {stops.map((s, i) => (
+        <Marker key={`stop-${i}`} position={[s.lat, s.lng]} icon={stopIcon} />
       ))}
       {pickup && <Marker position={[pickup.lat, pickup.lng]} icon={pickupIcon} />}
       {destination && <Marker position={[destination.lat, destination.lng]} icon={destIcon} />}

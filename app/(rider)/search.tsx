@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { View, StyleSheet, Pressable, FlatList, ActivityIndicator } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { router } from 'expo-router';
+import { router, useLocalSearchParams } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { Text } from '@/components/ui/Text';
 import { Input } from '@/components/ui/Input';
@@ -12,7 +12,10 @@ import { colors, radius, space } from '@/theme/tokens';
 
 export default function Search() {
   const insets = useSafeAreaInsets();
+  const { mode } = useLocalSearchParams<{ mode?: string }>();
+  const isStop = mode === 'stop';
   const setDestination = useRide((s) => s.setDestination);
+  const addStop = useRide((s) => s.addStop);
   const pickup = useRide((s) => s.pickup);
   const history = useRide((s) => s.history);
 
@@ -44,6 +47,11 @@ export default function Search() {
   }, [query]);
 
   async function choose(place: Place) {
+    if (isStop) {
+      await addStop(place);
+      router.back();
+      return;
+    }
     await setDestination(place);
     router.replace('/(rider)/select-ride');
   }
@@ -62,7 +70,7 @@ export default function Search() {
         <Pressable onPress={() => router.back()} hitSlop={10} testID="search-back">
           <Ionicons name="chevron-back" size={26} color={colors.ink} />
         </Pressable>
-        <Text variant="h3">Set your destination</Text>
+        <Text variant="h3">{isStop ? 'Add a stop' : 'Set your destination'}</Text>
       </View>
 
       {/* trip endpoints */}

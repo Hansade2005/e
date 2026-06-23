@@ -57,6 +57,13 @@ await step('pick-destination', async () => {
 });
 await page.screenshot({ path: `${SHOTS}/r2-select.png` });
 
+await step('add-a-stop', async () => {
+  await tid('add-stop').click();
+  await tid('search-input').waitFor({ timeout: 10000 }); // search in "stop" mode
+  await tid('result-l3').click({ timeout: 10000 }); // add Power & Light as a stop
+  await tid('stop-0').waitFor({ timeout: 15000 }); // back on select-ride with the stop
+});
+
 await step('choose-premium', async () => {
   await tid('vehicle-ezpremium').click();
   await tid('gender-pref-female').click(); // request a women driver

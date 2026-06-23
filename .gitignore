@@ -49,3 +49,4 @@ e2e/*.png
 
 # recording artifacts
 videos-tour/
+e2e/video/
