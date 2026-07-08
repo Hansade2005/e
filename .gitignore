@@ -50,3 +50,8 @@ e2e/*.png
 # recording artifacts
 videos-tour/
 e2e/video/
+
+# stock-video generator artifacts
+scripts/make-video/.cache/
+scripts/make-video/.work/
+scripts/make-video/out/
