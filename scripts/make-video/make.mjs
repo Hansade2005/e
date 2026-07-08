@@ -5,7 +5,8 @@
 // ffmpeg Ken Burns stills + trimmed b-roll) -> xfade concat -> mix a ducked
 // music bed -> compact H.264 mp4. Prints per-phase and total wall-clock.
 //
-// Usage: node scripts/make-video/make.mjs
+// Usage: PIXABAY_KEY=<your-key> node scripts/make-video/make.mjs
+//        (free key: https://pixabay.com/api/docs/)
 import { execFileSync } from 'node:child_process';
 import fs from 'node:fs';
 import path from 'node:path';
@@ -17,7 +18,8 @@ const WORK = path.join(ROOT, '.work'); // intermediate segments
 const OUT = path.join(ROOT, 'out');
 for (const d of [CACHE, WORK, OUT]) fs.mkdirSync(d, { recursive: true });
 
-const KEY = process.env.PIXABAY_KEY || '48821648-9aaaa8e875e6482903af399df';
+const KEY = process.env.PIXABAY_KEY;
+if (!KEY) throw new Error('Set PIXABAY_KEY (get a free key at https://pixabay.com/api/docs/)');
 const W = 1280, H = 720, FPS = 30, XF = 0.6; // canvas + crossfade seconds
 
 // ---- timing -------------------------------------------------------------
@@ -33,7 +35,13 @@ function ff(args) {
 }
 function curl(url, dest) {
   if (fs.existsSync(dest) && fs.statSync(dest).size > 0) return dest; // cache hit
-  execFileSync('curl', ['-sS', '-L', '--max-time', '120', '-o', dest, url], { stdio: ['ignore', 'ignore', 'inherit'] });
+  try {
+    // -f: fail (non-zero exit) on HTTP >= 400 so an error body never poisons the cache.
+    execFileSync('curl', ['-f', '-sS', '-L', '--max-time', '120', '-o', dest, url], { stdio: ['ignore', 'ignore', 'inherit'] });
+  } catch (err) {
+    try { fs.unlinkSync(dest); } catch {} // drop the partial/error file
+    throw err;
+  }
   return dest;
 }
 
@@ -52,6 +60,7 @@ function pixabay(type, q) {
 
 function getVideo(q, pick = 0) {
   const hits = pixabay('video', q).hits || [];
+  if (!hits.length) throw new Error(`No Pixabay videos for query: "${q}"`);
   const hit = hits[pick % hits.length];
   const v = hit.videos.medium || hit.videos.small || hit.videos.tiny;
   const dest = path.join(CACHE, `vid_${hit.id}.mp4`);
@@ -61,6 +70,7 @@ function getVideo(q, pick = 0) {
 
 function getPhoto(q, pick = 0) {
   const hits = pixabay('photo', q).hits || [];
+  if (!hits.length) throw new Error(`No Pixabay photos for query: "${q}"`);
   const hit = hits[pick % hits.length];
   const dest = path.join(CACHE, `img_${hit.id}.jpg`);
   curl(hit.largeImageURL, dest);
@@ -104,16 +114,25 @@ function kenBurnsSeg(out, file, dur, forward = true) {
 
 async function cardSeg(out, dur, html) {
   const vdir = fs.mkdtempSync(path.join(WORK, 'card-'));
-  const browser = await chromium.launch();
-  const ctx = await browser.newContext({ viewport: { width: W, height: H }, recordVideo: { dir: vdir, size: { width: W, height: H } } });
-  const page = await ctx.newPage();
-  await page.setContent(html, { waitUntil: 'load' });
-  await page.waitForTimeout(Math.round(dur * 1000));
-  await page.close();
-  await ctx.close();
-  await browser.close();
-  const webm = path.join(vdir, fs.readdirSync(vdir).find((f) => f.endsWith('.webm')));
-  ff(['-t', String(dur), '-i', webm, '-an', '-vf', NORM, '-c:v', 'libx264', '-crf', '20', '-preset', 'veryfast', out]);
+  let browser;
+  try {
+    browser = await chromium.launch();
+    const ctx = await browser.newContext({ viewport: { width: W, height: H }, recordVideo: { dir: vdir, size: { width: W, height: H } } });
+    const page = await ctx.newPage();
+    await page.setContent(html, { waitUntil: 'load' });
+    await page.waitForTimeout(Math.round(dur * 1000));
+    await page.close();
+    await ctx.close();
+    await browser.close();
+    browser = null;
+    const webmFile = fs.readdirSync(vdir).find((f) => f.endsWith('.webm'));
+    if (!webmFile) throw new Error(`No .webm recorded in ${vdir}`);
+    ff(['-t', String(dur), '-i', path.join(vdir, webmFile), '-an', '-vf', NORM,
+        '-c:v', 'libx264', '-crf', '20', '-preset', 'veryfast', out]);
+  } finally {
+    if (browser) try { await browser.close(); } catch {}
+    try { fs.rmSync(vdir, { recursive: true, force: true }); } catch {}
+  }
 }
 
 // themed HTML cards -------------------------------------------------------
@@ -208,10 +227,14 @@ logPhase('xfade concat', secs() - m);
 
 m = secs();
 const finalOut = path.join(OUT, 'montage.mp4');
-// music bed: trim to length, gentle fades, compress final to a small file
+// music bed: trim to length, gentle fades, compress final to a small file.
+// Guard the fades so a very short total can't push afade start/duration negative.
+const fadeIn = Math.min(1.5, total);
+const fadeOutStart = Math.max(0, total - 2);
+const fadeOutDur = Math.min(2, total - fadeOutStart);
 ff(['-i', silent, '-i', music.file,
     '-filter_complex',
-    `[1:a]atrim=0:${total.toFixed(2)},afade=t=in:st=0:d=1.5,afade=t=out:st=${(total - 2).toFixed(2)}:d=2,volume=0.85[a]`,
+    `[1:a]atrim=0:${total.toFixed(2)},afade=t=in:st=0:d=${fadeIn.toFixed(2)},afade=t=out:st=${fadeOutStart.toFixed(2)}:d=${fadeOutDur.toFixed(2)},volume=0.85[a]`,
     '-map', '0:v', '-map', '[a]',
     '-c:v', 'libx264', '-crf', '30', '-preset', 'veryslow', '-pix_fmt', 'yuv420p', '-movflags', '+faststart',
     '-c:a', 'aac', '-b:a', '128k', '-shortest', finalOut]);
