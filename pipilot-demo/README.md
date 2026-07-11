@@ -35,8 +35,13 @@ An expired `access_token` is fine — supabase-js auto-refreshes it on load via 
 ```bash
 npm install playwright        # 1.61.x
 node auth-check.mjs           # verify login
-RUN_MS=300000 node run-agent-teams.mjs
+node run-agent-teams.mjs      # runs until the build is reasonably complete
 ```
+
+`run-agent-teams.mjs` polls until all three workers finish and the builder goes
+idle (past any transient auto-fix), recording to `videos/`. A safety ceiling caps
+the wait — override it with `MAX_MS` (milliseconds; `RUN_MS` is accepted as an
+alias), e.g. `MAX_MS=1800000 node run-agent-teams.mjs`.
 
 ## Environment gotchas (why a naive local run fails)
 

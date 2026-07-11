@@ -1,18 +1,18 @@
 import { launch, authenticate, STORAGE_KEY } from './lib.mjs';
 
 const { browser, ctx } = await launch();
-await authenticate(ctx);
-const page = await ctx.newPage();
-
 const apiHits = [];
-page.on('response', (r) => {
-  const u = r.url();
-  if (u.includes('supabase.co') && (u.includes('/auth/') || u.includes('/rest/'))) {
-    apiHits.push(r.status() + ' ' + u.split('supabase.co')[1].split('?')[0]);
-  }
-});
 
 try {
+  await authenticate(ctx);
+  const page = await ctx.newPage();
+  page.on('response', (r) => {
+    const u = r.url();
+    if (u.includes('supabase.co') && (u.includes('/auth/') || u.includes('/rest/'))) {
+      apiHits.push(r.status() + ' ' + u.split('supabase.co')[1].split('?')[0]);
+    }
+  });
+
   await page.goto('https://pipilot.dev/app', { waitUntil: 'domcontentloaded', timeout: 90000 });
   await page.waitForTimeout(8000); // let it refresh token + render dashboard
 

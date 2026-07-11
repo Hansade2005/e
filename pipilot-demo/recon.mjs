@@ -1,15 +1,7 @@
-import { chromium } from 'playwright';
+// Reconnaissance runs logged-out, so it reuses launch() but not authenticate().
+import { launch } from './lib.mjs';
 
-const browser = await chromium.launch({
-  headless: true,
-  executablePath: '/opt/pw-browsers/chromium-1194/chrome-linux/chrome',
-  proxy: { server: process.env.HTTPS_PROXY || 'http://127.0.0.1:35921' },
-  args: ['--no-sandbox', '--disable-dev-shm-usage', '--ssl-version-max=tls1.2'],
-});
-const ctx = await browser.newContext({
-  viewport: { width: 1440, height: 900 },
-  ignoreHTTPSErrors: true,
-});
+const { browser, ctx } = await launch();
 const page = await ctx.newPage();
 
 const reqs = new Set();

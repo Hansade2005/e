@@ -5,7 +5,7 @@ import { readdirSync } from 'fs';
 const PROMPT =
   'Build a link-in-bio web app. Use an agent team to build these three independent features in parallel: (1) a QR code generator for each saved link, (2) a click-analytics dashboard with charts, and (3) a theme customizer with light/dark mode and color presets.';
 
-const MAX_MS = Number(process.env.MAX_MS || 2700000); // 45 min safety ceiling
+const MAX_MS = Number(process.env.MAX_MS || process.env.RUN_MS || 2700000); // 45 min safety ceiling
 const POLL_MS = 10000;
 const SHOT_EVERY_MS = 20000;
 
@@ -20,8 +20,7 @@ const ctx = await browser.newContext({
   ignoreHTTPSErrors: true,
   recordVideo: { dir: './videos', size: { width: 1440, height: 900 } },
 });
-await authenticate(ctx);
-const page = await ctx.newPage();
+let page; // assigned inside try so a setup failure still hits the finally cleanup
 
 let shot = 0;
 let lastShotAt = 0;
@@ -50,6 +49,8 @@ const readState = () =>
     .catch(() => null);
 
 try {
+  await authenticate(ctx);
+  page = await ctx.newPage();
   await page.goto('https://pipilot.dev/app', { waitUntil: 'domcontentloaded', timeout: 90000 });
   await page.waitForTimeout(7000);
 

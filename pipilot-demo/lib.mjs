@@ -21,14 +21,29 @@ export const STORAGE_KEY =
   process.env.PIPILOT_STORAGE_KEY || 'sb-idftbwgsbypgcqhyrqgn-auth-token';
 
 export function loadSession() {
-  if (process.env.PIPILOT_SESSION_JSON) return JSON.parse(process.env.PIPILOT_SESSION_JSON);
+  if (process.env.PIPILOT_SESSION_JSON) {
+    try {
+      return JSON.parse(process.env.PIPILOT_SESSION_JSON);
+    } catch (e) {
+      throw new Error('PIPILOT_SESSION_JSON is not valid JSON: ' + e.message);
+    }
+  }
+  let content;
   try {
-    return JSON.parse(readFileSync(join(__dir, 'session.local.json'), 'utf8'));
-  } catch {
-    throw new Error(
-      'No session found. Set PIPILOT_SESSION_JSON or create pipilot-demo/session.local.json ' +
-        '(the object Supabase stores in localStorage under ' + STORAGE_KEY + ').'
-    );
+    content = readFileSync(join(__dir, 'session.local.json'), 'utf8');
+  } catch (e) {
+    if (e.code === 'ENOENT') {
+      throw new Error(
+        'No session found. Set PIPILOT_SESSION_JSON or create pipilot-demo/session.local.json ' +
+          '(the object Supabase stores in localStorage under ' + STORAGE_KEY + ').'
+      );
+    }
+    throw e;
+  }
+  try {
+    return JSON.parse(content);
+  } catch (e) {
+    throw new Error('pipilot-demo/session.local.json is not valid JSON: ' + e.message);
   }
 }
 
