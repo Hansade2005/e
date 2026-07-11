@@ -23,3 +23,6 @@ t*.mjs
 
 # deps
 node_modules/
+
+# scratch output
+*.out

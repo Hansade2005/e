@@ -3,7 +3,8 @@ import { authenticate, PROXY, EXE } from './lib.mjs';
 import { readdirSync } from 'fs';
 
 const PROMPT =
-  'Build a link-in-bio web app. Use an agent team to build these three independent features in parallel: (1) a QR code generator for each saved link, (2) a click-analytics dashboard with charts, and (3) a theme customizer with light/dark mode and color presets.';
+  'Build a link-in-bio web app. Use an agent team to build these three independent features in parallel: (1) a QR code generator for each saved link, (2) a click-analytics dashboard with charts, and (3) a theme customizer with light/dark mode and color presets. ' +
+  'IMPORTANT: Do NOT deploy the app anywhere and do NOT connect any hosting or deployment provider (no Puter, no Netlify, no Vercel, nothing). Build and run it only in the local preview. Skip any deploy or publish step entirely.';
 
 const MAX_MS = Number(process.env.MAX_MS || process.env.RUN_MS || 2700000); // 45 min safety ceiling
 const POLL_MS = 10000;
@@ -34,6 +35,27 @@ const snap = async (label, force = false) => {
   } catch {}
 };
 
+// The preview shows a persistent "Connect Puter to deploy" CTA; keep it dismissed
+// so the recording stays clean. Only acts when the modal is actually present.
+const dismissDeployModal = async () => {
+  const present = await page
+    .evaluate(() => /Connect Puter|Sign in with Puter|OR PASTE A TOKEN/i.test(document.body.innerText))
+    .catch(() => false);
+  if (!present) return;
+  const closers = [
+    page.locator('button[aria-label="Close"]'),
+    page.getByRole('button', { name: /close/i }),
+    page.locator('button:has-text("×")'),
+    page.locator('button:has-text("✕")'),
+  ];
+  for (const c of closers) {
+    if (await c.count().catch(() => 0)) {
+      await c.first().click({ timeout: 1000 }).catch(() => {});
+      break;
+    }
+  }
+};
+
 const readState = () =>
   page
     .evaluate(() => {
@@ -55,7 +77,8 @@ try {
   await page.waitForTimeout(7000);
 
   const ta = page.getByRole('textbox', { name: 'Describe the app you want to build' });
-  await ta.click({ timeout: 15000 });
+  await ta.waitFor({ state: 'visible', timeout: 45000 });
+  await ta.click({ timeout: 20000 });
   await ta.fill(PROMPT);
   await snap('prompt', true);
   console.log('Submitting build prompt (Agent Teams, run-until-complete)…');
@@ -66,6 +89,7 @@ try {
   let sawWorkersStart = false;
   while (Date.now() - start < MAX_MS) {
     await page.waitForTimeout(POLL_MS);
+    await dismissDeployModal();
     const s = await readState();
     await snap(s ? `t${s.teamDone}${s.working ? '-work' : ''}${s.errorBanner ? '-err' : ''}` : 'poll');
     const el = Math.round((Date.now() - start) / 1000);
