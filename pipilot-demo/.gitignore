@@ -1,0 +1,25 @@
+# Secrets — never commit the auth session
+session.local.json
+
+# Recording / capture artifacts
+videos/
+shots/
+*.webm
+*.mp4
+run*.log
+netlog.json
+
+# Downloaded copies of the live site's assets (not ours)
+*.js
+!lib.mjs
+!recon.mjs
+!auth-check.mjs
+!probe.mjs
+!run-agent-teams.mjs
+index.html
+
+# scratch experiments
+t*.mjs
+
+# deps
+node_modules/
